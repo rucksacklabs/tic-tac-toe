@@ -1,0 +1,17 @@
+replicaCount: 1
+
+image:
+  repository: tic-tac-toe
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8000
+
+config:
+  aiCoachModel: claude-opus-4-6
+  databaseUrl: "postgresql+asyncpg://user:password@db:5432/tic-tac-toe"
+
+secret:
+  anthropicApiKey: ""  # base64-encoded value or set via --set

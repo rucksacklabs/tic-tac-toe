@@ -1,0 +1,18 @@
+# Purpose: Docker Compose configuration for local development services.
+# Architecture: Infrastructure/Deployment.
+# Notes: Primarily used to spin up a PostgreSQL database for testing non-SQLite backends.
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: tic-tac-toe-db
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: tic-tac-toe
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user -d tic-tac-toe"]
+      interval: 10s
+      timeout: 5s
+      retries: 5

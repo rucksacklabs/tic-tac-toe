@@ -1,0 +1,5 @@
+apiVersion: v2
+name: tic-tac-toe
+description: A FastAPI tic-tac-toe app with AI coaching
+version: 0.1.0
+appVersion: 0.1.0

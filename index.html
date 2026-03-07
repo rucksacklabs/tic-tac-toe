@@ -1,0 +1,391 @@
+<!--
+Purpose: Single-page frontend for the Tic-Tac-Toe game.
+Architecture: Presentation Layer (Frontend).
+Notes: Pure HTML/JS/CSS. Communicates with the FastAPI backend via REST.
+-->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Tic-Tac-Toe</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f5f5f5;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+      padding: 2rem;
+      max-width: 420px;
+      width: 100%;
+    }
+    h1 {
+      margin: 0 0 0.25rem 0;
+      font-size: 1.75rem;
+      color: #1a1a1a;
+    }
+    .subtitle {
+      margin: 0 0 1.5rem 0;
+      font-size: 0.95rem;
+      color: #666;
+    }
+    .board {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(60px, 100px));
+      gap: 0.5rem;
+      margin: 1.5rem 0;
+      justify-content: center;
+    }
+    .cell {
+      aspect-ratio: 1;
+      min-width: 60px;
+      min-height: 60px;
+      font-size: 1.75rem;
+      font-weight: 600;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      background: #fafafa;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .cell:hover:not(.disabled) {
+      background: #eee;
+      border-color: #ccc;
+    }
+    .cell:focus {
+      outline: none;
+      border-color: #4a90d9;
+      box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.2);
+    }
+    .cell.disabled {
+      cursor: default;
+      opacity: 0.85;
+    }
+    .cell.x { color: #2563eb; }
+    .cell.o { color: #ea580c; }
+    .controls {
+      margin-top: 1.5rem;
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+    }
+    button.primary {
+      padding: 0.6rem 1.2rem;
+      font-size: 1rem;
+      font-weight: 500;
+      color: #fff;
+      background: #2563eb;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    button.primary:hover:not(:disabled) {
+      background: #1d4ed8;
+    }
+    button.primary:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .status-bar {
+      min-height: 1.5rem;
+      margin-bottom: 0.5rem;
+      font-size: 0.95rem;
+      color: #444;
+    }
+    .status-bar.loading {
+      color: #888;
+    }
+    .error-banner {
+      background: #fef2f2;
+      border: 1px solid #fecaca;
+      color: #b91c1c;
+      padding: 0.6rem 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+    }
+    .error-banner button {
+      background: none;
+      border: none;
+      color: #b91c1c;
+      cursor: pointer;
+      padding: 0.2rem;
+      font-size: 1.2rem;
+      line-height: 1;
+    }
+    .error-banner button:hover {
+      color: #991b1b;
+    }
+    .welcome-prompt {
+      color: #666;
+      font-size: 0.95rem;
+      margin: 1rem 0;
+      text-align: center;
+    }
+    .cell.recommended {
+      box-shadow: 0 0 0 3px #fbbf24;
+    }
+  </style>
+  <script src="https://unpkg.com/preact@10.19.2/dist/preact.umd.js"></script>
+  <script src="https://unpkg.com/preact@10.19.2/hooks/dist/hooks.umd.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.24.0/babel.min.js"></script>
+</head>
+<body>
+  <div id="app"></div>
+  <script type="text/babel" data-presets="env,react">
+    const React = { createElement: preact.h, Fragment: preact.Fragment };
+    const { useState, useCallback } = preactHooks;
+    const { h, render } = preact;
+
+    // API base: same origin (serve this file from FastAPI or same host as API)
+    const API_BASE = '';
+
+    async function handleResponse(response, defaultMessage = 'Request failed') {
+      const text = await response.text();
+      let detail = defaultMessage;
+      try {
+        const data = JSON.parse(text);
+        if (data.detail != null) detail = typeof data.detail === 'string' ? data.detail : JSON.stringify(data.detail);
+      } catch (_) {}
+      if (!response.ok) throw new Error(detail);
+      return text ? JSON.parse(text) : null;
+    }
+
+    function Cell({ value, onClick, disabled, isRecommended }) {
+      const className = ['cell', value.toLowerCase(), disabled ? 'disabled' : '', isRecommended ? 'recommended' : ''].filter(Boolean).join(' ');
+      return (
+        <button
+          type="button"
+          className={className}
+          onClick={onClick}
+          disabled={disabled}
+          aria-label={value ? `Cell ${value}` : 'Empty cell'}
+        >
+          {value || '\u00A0'}
+        </button>
+      );
+    }
+
+    function Board({ board, onCellClick, disabled, recommendedPosition }) {
+      return (
+        <div className="board" role="grid" aria-label="Tic-tac-toe board">
+          {(board || Array(9).fill('')).map((cell, i) => (
+            <Cell
+              key={i}
+              value={cell}
+              onClick={() => onCellClick(i)}
+              disabled={disabled}
+              isRecommended={!disabled && recommendedPosition === i}
+            />
+          ))}
+        </div>
+      );
+    }
+
+    function ClippyCoach({ message, loading, visible, onDismiss }) {
+      if (!visible && !loading) return null;
+      return (
+        <div style={{ position: 'fixed', bottom: 24, right: 24, zIndex: 1000,
+                      display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <div style={{ background: '#fff', border: '2px solid #2563eb',
+                        borderRadius: 12, padding: '10px 14px', maxWidth: 220,
+                        fontSize: 14, position: 'relative', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
+            <button onClick={onDismiss} style={{ position: 'absolute', top: 4, right: 6,
+                      background: 'none', border: 'none', cursor: 'pointer', fontSize: 16, color: '#666' }}>
+              ×
+            </button>
+            <div style={{ paddingRight: 16 }}>{loading ? 'Thinking...' : message}</div>
+            <div style={{ position: 'absolute', bottom: -10, left: '50%', transform: 'translateX(-50%)',
+                          width: 0, height: 0, borderLeft: '8px solid transparent',
+                          borderRight: '8px solid transparent', borderTop: '10px solid #2563eb' }} />
+          </div>
+          <div style={{ fontSize: 48, marginTop: 4 }}>🤖</div>
+        </div>
+      );
+    }
+
+    function StatusBar({ status, currentPlayer, winner, message, loading, isSubmittingMove }) {
+      const isLoading = loading || isSubmittingMove;
+      let text = '';
+      if (status === 'active') text = `Current player: ${currentPlayer}`;
+      else if (status === 'won' && message) text = message;
+      else if (status === 'won' && winner) text = `Player ${winner} wins!`;
+      else if (status === 'draw') text = message || "It's a draw!";
+      else if (status === 'idle' && !loading) text = '';
+      if (isLoading) text = 'Loading...';
+      return (
+        <div className={'status-bar' + (isLoading ? ' loading' : '')}>
+          {text}
+        </div>
+      );
+    }
+
+    function ErrorBanner({ error, onDismiss }) {
+      if (!error) return null;
+      return (
+        <div className="error-banner" role="alert">
+          <span>{error}</span>
+          <button type="button" onClick={onDismiss} aria-label="Dismiss">×</button>
+        </div>
+      );
+    }
+
+    function App() {
+      const [gameId, setGameId] = useState(null);
+      const [board, setBoard] = useState(Array(9).fill(''));
+      const [currentPlayer, setCurrentPlayer] = useState('X');
+      const [status, setStatus] = useState('idle');
+      const [winner, setWinner] = useState(null);
+      const [message, setMessage] = useState(null);
+      const [error, setError] = useState(null);
+      const [isSubmittingMove, setIsSubmittingMove] = useState(false);
+      const [loading, setLoading] = useState(false);
+      const [coachMessage, setCoachMessage] = useState(null);
+      const [coachPosition, setCoachPosition] = useState(null);
+      const [coachLoading, setCoachLoading] = useState(false);
+      const [coachVisible, setCoachVisible] = useState(false);
+
+      const applyGameState = useCallback((data) => {
+        setGameId(data.id);
+        setBoard(Array.isArray(data.board) ? data.board : (data.board?.cells ?? Array(9).fill('')));
+        setCurrentPlayer(data.current_player || 'X');
+        setStatus(data.status === 'active' ? 'active' : data.status === 'won' ? 'won' : data.status === 'draw' ? 'draw' : 'active');
+        setWinner(data.winner ?? null);
+        setMessage(data.message ?? null);
+        setError(null);
+      }, []);
+
+      const fetchCoach = useCallback(async (id) => {
+        setCoachLoading(true);
+        setCoachVisible(false);
+        try {
+          const res = await fetch(`${API_BASE}/games/${id}/coach`, { method: 'POST' });
+          if (res.ok) {
+            const data = await res.json();
+            setCoachMessage(data.message);
+            setCoachPosition(data.recommended_position);
+            setCoachVisible(true);
+          }
+        } catch (_) {
+          // Coach is non-critical; fail silently
+        } finally {
+          setCoachLoading(false);
+        }
+      }, []);
+
+      const createGame = useCallback(async () => {
+        setLoading(true);
+        setError(null);
+        setCoachMessage(null);
+        setCoachPosition(null);
+        setCoachVisible(false);
+        try {
+          const response = await fetch(`${API_BASE}/games`, { method: 'POST' });
+          const data = await handleResponse(response, 'Failed to create game');
+          applyGameState(data);
+        } catch (e) {
+          setError(e.message || 'Network error, please retry');
+          setStatus('idle');
+          setGameId(null);
+        } finally {
+          setLoading(false);
+        }
+      }, [applyGameState]);
+
+      const makeMove = useCallback(async (position) => {
+        if (!gameId || status !== 'active') return;
+        if (board[position] !== '') {
+          setError('Cell is occupied');
+          return;
+        }
+        setIsSubmittingMove(true);
+        setError(null);
+        try {
+          const x = position % 3;
+          const y = Math.floor(position / 3);
+          const response = await fetch(`${API_BASE}/games/${gameId}/moves`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ x, y }),
+          });
+          const data = await handleResponse(response, 'Move failed');
+          applyGameState(data);
+          if (data.status === 'active') {
+            fetchCoach(gameId);
+          }
+        } catch (e) {
+          const msg = e.message || 'Network error, please retry';
+          setError(msg);
+          if (msg.toLowerCase().includes('not found') || msg.toLowerCase().includes('404')) {
+            setStatus('idle');
+            setGameId(null);
+          }
+        } finally {
+          setIsSubmittingMove(false);
+        }
+      }, [gameId, status, currentPlayer, board, applyGameState, fetchCoach]);
+
+      const boardDisabled = status !== 'active' || isSubmittingMove || loading;
+      const showWelcome = status === 'idle' && !gameId && !loading;
+
+      return (
+        <React.Fragment>
+          <div className="card">
+            <h1>Tic-Tac-Toe</h1>
+            <p className="subtitle">Play against a friend</p>
+            <ErrorBanner error={error} onDismiss={() => setError(null)} />
+            <StatusBar
+              status={status}
+              currentPlayer={currentPlayer}
+              winner={winner}
+              message={message}
+              loading={loading}
+              isSubmittingMove={isSubmittingMove}
+            />
+            {showWelcome ? (
+              <p className="welcome-prompt">Click New Game to start.</p>
+            ) : (
+              <Board board={board} onCellClick={makeMove} disabled={boardDisabled} recommendedPosition={status === 'active' ? coachPosition : null} />
+            )}
+            <div className="controls">
+              <button
+                type="button"
+                className="primary"
+                onClick={createGame}
+                disabled={loading}
+              >
+                New Game
+              </button>
+            </div>
+          </div>
+          <ClippyCoach
+            message={coachMessage}
+            loading={coachLoading}
+            visible={coachVisible}
+            onDismiss={() => setCoachVisible(false)}
+          />
+        </React.Fragment>
+      );
+    }
+
+    render(h(App), document.getElementById('app'));
+  </script>
+</body>
+</html>

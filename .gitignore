@@ -11,4 +11,10 @@ wheels/
 
 # Project-specific
 tic_tac_toe.db
+*.db
 .pytest_cache/
+.coverage
+htmlcov/
+.ruff_cache/
+.env.local
+.vscode/

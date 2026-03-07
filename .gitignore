@@ -18,3 +18,5 @@ htmlcov/
 .ruff_cache/
 .env.local
 .vscode/
+
+docs/plans/

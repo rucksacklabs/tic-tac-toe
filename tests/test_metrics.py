@@ -8,12 +8,11 @@ from unittest.mock import AsyncMock
 
 import pytest
 from httpx import AsyncClient, ASGITransport
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 
 from app.metrics import MetricsClient, NoOpMetricsClient, MetricsMiddleware
-from app.persistence.database import Base, get_db
-from app.dependency_injection import get_metrics, get_ai_coach
+from app.dependency_injection import get_metrics, get_ai_coach, get_game_repo
 from app.services.ai_coach import AICoach, AICoachError
+from app.persistence.in_memory_game_repository import InMemoryGameRepository
 from main import app
 
 
@@ -44,48 +43,30 @@ class RecordingMetricsClient:
         return [name for name, _, _ in self.timings]
 
 
-# ---------------------------------------------------------------------------
-# DB setup (in-memory SQLite, same pattern as existing API tests)
-# ---------------------------------------------------------------------------
-
-TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
-test_engine = create_async_engine(TEST_DATABASE_URL, echo=False)
-TestSessionLocal = async_sessionmaker(test_engine, expire_on_commit=False)
-
-
-async def override_get_db():
-    async with TestSessionLocal() as session:
-        yield session
-
-
-@pytest.fixture(autouse=True)
-async def setup_db():
-    async with test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    yield
-    async with test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
-
-
 @pytest.fixture
 def recording_metrics():
     return RecordingMetricsClient()
 
 
 @pytest.fixture
-async def client(setup_db, recording_metrics):
-    app.dependency_overrides[get_db] = override_get_db
+def repo():
+    return InMemoryGameRepository()
+
+
+@pytest.fixture
+async def client(repo, recording_metrics):
+    app.dependency_overrides[get_game_repo] = lambda: repo
     app.dependency_overrides[get_metrics] = lambda: recording_metrics
     app.state.metrics = recording_metrics
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as c:
         yield c
-    app.dependency_overrides.pop(get_db, None)
+    app.dependency_overrides.pop(get_game_repo, None)
     app.dependency_overrides.pop(get_metrics, None)
 
 
-def mock_coach_override(recommendation=(4, "Play the center!")):
+def mock_coach_override(recommendation=((1, 1), "Play the center!")):
     coach = AsyncMock(spec=AICoach)
     coach.get_ai_coach_recommendation = AsyncMock(return_value=recommendation)
     return lambda: coach

@@ -12,6 +12,7 @@ from fastapi.responses import FileResponse
 
 from app.persistence.database import init_db
 from app.api.games import router as games_router
+from app.api.ai_coach import router as ai_coach_router
 from app.metrics import MetricsMiddleware
 from app.dependency_injection import get_metrics
 
@@ -26,6 +27,7 @@ app = FastAPI(title="Tic-Tac-Toe API", lifespan=lifespan)
 app.state.metrics = get_metrics()
 app.add_middleware(MetricsMiddleware)
 app.include_router(games_router)
+app.include_router(ai_coach_router)
 
 # Serve single-file frontend from project root (same origin as API)
 INDEX_PATH = Path(__file__).resolve().parent / "index.html"

@@ -10,13 +10,13 @@ A REST API for multi-session tic-tac-toe built with FastAPI, SQLAlchemy, and SQL
 ## Setup
 
 ```bash
-uv sync
+make install
 ```
 
 ## Run
 
 ```bash
-uv run python main.py
+make run
 ```
 
 API available at http://localhost:8000
@@ -31,7 +31,7 @@ Interactive docs at http://localhost:8000/docs
 | GET | `/games/{id}` | Get game state |
 | POST | `/games/{id}/moves` | Make the next human move, then computer replies |
 | GET | `/games/{id}/moves` | List all recorded moves in chronological order |
-| POST | `/games/{id}/coach` | Get AI coaching recommendation |
+| GET | `/coach/{id}` | Get AI coaching recommendation |
 | DELETE | `/games/{id}` | Delete a game |
 
 ### Move Contract
@@ -39,7 +39,7 @@ Interactive docs at http://localhost:8000/docs
 - `POST /games/{id}/moves` accepts 0-based coordinates:
   - request body: `{"x": 0..2, "y": 0..2}`
   - coordinates map to internal position with `position = y * 3 + x`
-- Human moves first, then the computer makes its move automatically (first available empty cell).
+- Human moves first, then the computer makes its move automatically.
 
 ### Board Representation
 
@@ -52,15 +52,15 @@ Interactive docs at http://localhost:8000/docs
 
 ```bash
 # Create a game
-curl -X POST http://localhost:8000/games
+curl -X POST -s -o /dev/null http://localhost:8000/games | jq '.id' | tr -d '"' | export id=$(cat -) | echo "Game ID: $id"
 
 # Human move at top-left (x=0, y=0); response includes computer move too
-curl -X POST http://localhost:8000/games/{id}/moves \
+curl -X POST http://localhost:8000/games/${id}/moves \
   -H "Content-Type: application/json" \
   -d '{"x": 0, "y": 0}'
 ```
 
-Internal positions are numbered 0–8, left to right, top to bottom:
+Internally positions are numbered 0–8, left to right, top to bottom:
 
 ```
 0 | 1 | 2
@@ -70,17 +70,29 @@ Internal positions are numbered 0–8, left to right, top to bottom:
 6 | 7 | 8
 ```
 
-## Assumptions and Tradeoffs
+## Assumptions, Tradeoffs and Notes
 
+If the service were to stay the way it is now, it could be considered over-engineered. 
+Given the goal of this exercise is to have something as production ready as possible, we're assuming this is the starting point of a sprawling tic-tac-toe SaaS platform.
+Designing the service to be extensible and maintainable was key in that regard.
+Which includes the service logic, swappable persistence, monitoring and a deployment vehicle (docker + helm charts).
+
+
+
+Took me about two evenings or 4-ish hours altogether.
+
+Some more assumptions and notes:
 - No authentication: "games I have played" is interpreted as all games in the database.
 - Game list and move history are returned oldest-first (chronological ascending).
-- Computer strategy picks a random available empty cell, favoring simplicity over stronger play.
-- Data is persisted in SQLite via SQLAlchemy async ORM with Alembic managing schema migrations.
+- Computer strategy picks a random available empty cell.
+- Data is persisted in SQLite or PostgreSQL via SQLAlchemy async ORM with Alembic managing schema migrations.
 
 ## Extra features
 
 - Single-page UI in `index.html`
-- AI coach endpoint (`POST /games/{id}/coach`)
+- AI coach endpoint (`GET /coach/{id}`)
+
+The idea is for the coach to take the current game state and well, coach the player by suggesting the next best move.
 
 ## Configuration
 
@@ -89,8 +101,8 @@ The application uses environment variables for configuration. You can provide th
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `DATABASE_URL` | `sqlite+aiosqlite:///./tic_tac_toe.db` | SQLAlchemy connection string |
-| `ANTHROPIC_API_KEY` | (required for coaching) | API key for AI coaching |
-| `AI_COACH_MODEL` | `claude-haiku-4-5` | Claude model for AI coaching |
+| `OPENAI_API_KEY` | (required for coaching) | API key for AI coaching |
+| `AI_COACH_MODEL` | `gpt-4o-mini` | OpenAI model for AI coaching |
 
 ## Database
 

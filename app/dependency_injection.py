@@ -1,13 +1,13 @@
 """
 Purpose: Dependency injection container and provider logic.
 Architecture: Application Layer. Decouples service creation from endpoint logic.
-Notes: Initializes Anthropic client and AICoach service.
+Notes: Initializes OpenAI client and AICoach service.
 """
 
 from functools import lru_cache
 
 from fastapi import Depends
-from anthropic import AsyncAnthropic
+from openai import AsyncOpenAI
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.ai_coach import AICoach
@@ -24,14 +24,14 @@ def get_metrics() -> MetricsClient:
 
 
 @lru_cache
-def get_anthropic_client() -> AsyncAnthropic:
-    key = Environment.ANTHROPIC_API_KEY_ENV
+def get_openai_client() -> AsyncOpenAI:
+    key = Environment.OPENAI_API_KEY_ENV
     if not key:
-        raise RuntimeError("ANTHROPIC_API_KEY environment variable is required")
-    return AsyncAnthropic(api_key=key)
+        raise RuntimeError("OPENAI_API_KEY environment variable is required")
+    return AsyncOpenAI(api_key=key)
 
 
-def get_ai_coach(client: AsyncAnthropic = Depends(get_anthropic_client)) -> AICoach:
+def get_ai_coach(client: AsyncOpenAI = Depends(get_openai_client)) -> AICoach:
     return AICoach(client)
 
 

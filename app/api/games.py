@@ -25,6 +25,7 @@ from app.services.game_service import (
 from app.dependency_injection import get_ai_coach, get_metrics, get_game_repo
 from app.services.ai_coach import AICoach, AICoachError
 from app.metrics.protocol import MetricsClient
+from app.environment import Environment
 
 router = APIRouter(prefix="/games", tags=["games"])
 
@@ -140,37 +141,3 @@ async def delete_game(
         raise HTTPException(status_code=404, detail="Game not found")
     await repo.delete(game_id)
     metrics.increment("game.deleted")
-
-
-@router.post("/{game_id}/coach", response_model=AICoachResponse)
-async def coach_game(
-    game_id: str,
-    repo: GameRepository = Depends(get_game_repo),
-    coach: AICoach = Depends(get_ai_coach),
-    metrics: MetricsClient = Depends(get_metrics),
-) -> AICoachResponse:
-    game = await repo.get(game_id)
-    if not game:
-        raise HTTPException(status_code=404, detail="Game not found")
-    if game.status != "active":
-        raise HTTPException(status_code=409, detail=f"Game is already {game.status}")
-
-    metrics.increment("ai_coach.request")
-    start = time.monotonic()
-    try:
-        recommended_position, message = await coach.get_ai_coach_recommendation(game)
-    except AICoachError as e:
-        metrics.increment("ai_coach.error", tags={"error_type": type(e).__name__})
-        raise HTTPException(status_code=502, detail=str(e))
-
-    duration_ms = (time.monotonic() - start) * 1000
-    metrics.timing("ai_coach.duration_ms", duration_ms)
-
-    recommended_x = recommended_position % 3
-    recommended_y = recommended_position // 3
-    return AICoachResponse(
-        game=GameResponse.model_validate(game),
-        recommended_x=recommended_x,
-        recommended_y=recommended_y,
-        message=message,
-    )

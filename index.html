@@ -151,7 +151,7 @@ Notes: Pure HTML/JS/CSS. Communicates with the FastAPI backend via REST.
   <div id="app"></div>
   <script type="text/babel" data-presets="env,react">
     const React = { createElement: preact.h, Fragment: preact.Fragment };
-    const { useState, useCallback } = preactHooks;
+    const { useState, useCallback, useEffect } = preactHooks;
     const { h, render } = preact;
 
     // API base: same origin (serve this file from FastAPI or same host as API)
@@ -261,6 +261,14 @@ Notes: Pure HTML/JS/CSS. Communicates with the FastAPI backend via REST.
       const [coachPosition, setCoachPosition] = useState(null);
       const [coachLoading, setCoachLoading] = useState(false);
       const [coachVisible, setCoachVisible] = useState(false);
+      const [coachAvailable, setCoachAvailable] = useState(null);
+
+      useEffect(() => {
+        fetch(`${API_BASE}/coach/status`)
+          .then(r => r.json())
+          .then(data => setCoachAvailable(data.available))
+          .catch(() => setCoachAvailable(false));
+      }, []);
 
       const applyGameState = useCallback((data) => {
         setGameId(data.id);
@@ -276,11 +284,11 @@ Notes: Pure HTML/JS/CSS. Communicates with the FastAPI backend via REST.
         setCoachLoading(true);
         setCoachVisible(false);
         try {
-          const res = await fetch(`${API_BASE}/games/${id}/coach`, { method: 'POST' });
+          const res = await fetch(`${API_BASE}/coach/${id}`, { method: 'GET' });
           if (res.ok) {
             const data = await res.json();
             setCoachMessage(data.message);
-            setCoachPosition(data.recommended_position);
+            setCoachPosition(data.recommended_y * 3 + data.recommended_x);
             setCoachVisible(true);
           }
         } catch (_) {
@@ -327,7 +335,7 @@ Notes: Pure HTML/JS/CSS. Communicates with the FastAPI backend via REST.
           });
           const data = await handleResponse(response, 'Move failed');
           applyGameState(data);
-          if (data.status === 'active') {
+          if (data.status === 'active' && coachAvailable) {
             fetchCoach(gameId);
           }
         } catch (e) {
@@ -340,7 +348,7 @@ Notes: Pure HTML/JS/CSS. Communicates with the FastAPI backend via REST.
         } finally {
           setIsSubmittingMove(false);
         }
-      }, [gameId, status, currentPlayer, board, applyGameState, fetchCoach]);
+      }, [gameId, status, currentPlayer, board, applyGameState, fetchCoach, coachAvailable]);
 
       const boardDisabled = status !== 'active' || isSubmittingMove || loading;
       const showWelcome = status === 'idle' && !gameId && !loading;
@@ -375,12 +383,22 @@ Notes: Pure HTML/JS/CSS. Communicates with the FastAPI backend via REST.
               </button>
             </div>
           </div>
-          <ClippyCoach
-            message={coachMessage}
-            loading={coachLoading}
-            visible={coachVisible}
-            onDismiss={() => setCoachVisible(false)}
-          />
+          {coachAvailable === false && (
+            <div class="clippy-coach">
+              <div class="speech-bubble">
+                Game coach not available, please configure OPENAI_API_KEY
+              </div>
+              <div class="clippy-avatar">🤖</div>
+            </div>
+          )}
+          {coachAvailable && (coachLoading || coachVisible) && (
+            <ClippyCoach
+              message={coachMessage}
+              loading={coachLoading}
+              visible={coachVisible}
+              onDismiss={() => setCoachVisible(false)}
+            />
+          )}
         </React.Fragment>
       );
     }

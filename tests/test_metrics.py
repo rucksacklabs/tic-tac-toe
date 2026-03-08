@@ -198,7 +198,7 @@ async def test_ai_coach_records_request_metric(client, recording_metrics):
 
     app.dependency_overrides[get_ai_coach] = mock_coach_override()
     try:
-        await client.post(f"/games/{game_id}/coach")
+        await client.get(f"/coach/{game_id}")
     finally:
         app.dependency_overrides.pop(get_ai_coach, None)
 
@@ -211,7 +211,7 @@ async def test_ai_coach_records_duration_metric(client, recording_metrics):
 
     app.dependency_overrides[get_ai_coach] = mock_coach_override()
     try:
-        await client.post(f"/games/{game_id}/coach")
+        await client.get(f"/coach/{game_id}")
     finally:
         app.dependency_overrides.pop(get_ai_coach, None)
 
@@ -224,7 +224,7 @@ async def test_ai_coach_records_error_metric(client, recording_metrics):
 
     app.dependency_overrides[get_ai_coach] = error_coach_override()
     try:
-        response = await client.post(f"/games/{game_id}/coach")
+        response = await client.get(f"/coach/{game_id}")
     finally:
         app.dependency_overrides.pop(get_ai_coach, None)
 

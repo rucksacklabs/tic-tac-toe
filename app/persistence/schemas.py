@@ -110,3 +110,8 @@ class AICoachResponse(BaseModel):
     recommended_x: int
     recommended_y: int
     message: str
+
+
+class CoachStatusResonse(BaseModel):
+    available: bool
+    message: str | None = None

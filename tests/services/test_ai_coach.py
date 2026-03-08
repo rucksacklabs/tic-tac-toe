@@ -1,8 +1,8 @@
 """
 Purpose: Unit tests for the AI Coach service.
 Architecture: Testing Layer (Unit).
-Notes: Mocks the Anthropic client to test recommendation logic.
-       messages.parse handles schema validation so no manual JSON parsing tests needed.
+Notes: Mocks the OpenAI client to test recommendation logic.
+       beta.chat.completions.parse handles schema validation so no manual JSON parsing tests needed.
 """
 
 import json
@@ -29,13 +29,14 @@ def make_game(board: Board | None = None) -> Game:
 
 
 def make_parse_response(
-    position: int, message: str, stop_reason: str = "end_turn"
+    position: int, message: str, finish_reason: str = "stop"
 ) -> MagicMock:
+    rec = CoachRecommendation(recommended_position=position, message=message)
+    choice = MagicMock()
+    choice.finish_reason = finish_reason
+    choice.message.parsed = rec
     response = MagicMock()
-    response.stop_reason = stop_reason
-    response.parsed_output = CoachRecommendation(
-        recommended_position=position, message=message
-    )
+    response.choices = [choice]
     return response
 
 
@@ -51,7 +52,7 @@ async def test_get_ai_coach_recommendation_uses_client_and_parses_result():
     game = make_game()
 
     mock_client = AsyncMock()
-    mock_client.messages.parse.return_value = make_parse_response(
+    mock_client.beta.chat.completions.parse.return_value = make_parse_response(
         0, "Take the first free cell."
     )
 
@@ -60,7 +61,7 @@ async def test_get_ai_coach_recommendation_uses_client_and_parses_result():
 
     assert pos == 0
     assert "first free cell" in msg
-    mock_client.messages.parse.assert_awaited_once()
+    mock_client.beta.chat.completions.parse.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -69,7 +70,9 @@ async def test_get_ai_coach_recommendation_raises_on_occupied_position():
     game = make_game(board=["X", "", "", "", "", "", "", "", ""])
 
     mock_client = AsyncMock()
-    mock_client.messages.parse.return_value = make_parse_response(0, "Take position 0.")
+    mock_client.beta.chat.completions.parse.return_value = make_parse_response(
+        0, "Take position 0."
+    )
 
     coach = AICoach(mock_client)
     with pytest.raises(AICoachError, match="already occupied"):
@@ -80,12 +83,14 @@ async def test_get_ai_coach_recommendation_raises_on_occupied_position():
 async def test_get_ai_coach_recommendation_raises_on_refusal():
     game = make_game()
 
+    choice = MagicMock()
+    choice.finish_reason = "content_filter"
+    choice.message.parsed = None
     response = MagicMock()
-    response.stop_reason = "refusal"
-    response.parsed_output = None
+    response.choices = [choice]
 
     mock_client = AsyncMock()
-    mock_client.messages.parse.return_value = response
+    mock_client.beta.chat.completions.parse.return_value = response
 
     coach = AICoach(mock_client)
     with pytest.raises(AICoachError, match="refused"):
@@ -96,12 +101,14 @@ async def test_get_ai_coach_recommendation_raises_on_refusal():
 async def test_get_ai_coach_recommendation_raises_on_max_tokens():
     game = make_game()
 
+    choice = MagicMock()
+    choice.finish_reason = "length"
+    choice.message.parsed = None
     response = MagicMock()
-    response.stop_reason = "max_tokens"
-    response.parsed_output = None
+    response.choices = [choice]
 
     mock_client = AsyncMock()
-    mock_client.messages.parse.return_value = response
+    mock_client.beta.chat.completions.parse.return_value = response
 
     coach = AICoach(mock_client)
     with pytest.raises(AICoachError, match="truncated"):

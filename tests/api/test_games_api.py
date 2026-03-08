@@ -208,7 +208,7 @@ async def test_ai_coach_endpoint_happy_path(client):
 
     app.dependency_overrides[get_ai_coach] = lambda: mock_coach
     try:
-        response = await client.post(f"/games/{game_id}/coach")
+        response = await client.get(f"/coach/{game_id}")
     finally:
         app.dependency_overrides.pop(get_ai_coach, None)
 
@@ -226,11 +226,42 @@ async def test_ai_coach_endpoint_game_not_found(client):
 
     app.dependency_overrides[get_ai_coach] = lambda: AsyncMock()
     try:
-        response = await client.post("/games/nonexistent-id/coach")
+        response = await client.get("/coach/nonexistent-id")
     finally:
         app.dependency_overrides.pop(get_ai_coach, None)
 
     assert response.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_coach_status_available(client, monkeypatch):
+    """Coach status returns available=True when API key is set and coach is ready."""
+    from unittest.mock import AsyncMock, patch
+    from app.services.ai_coach import AICoach, CoachStatus
+
+    monkeypatch.setattr("app.environment.Environment.OPENAI_API_KEY_ENV", "test-key")
+    with patch.object(
+        AICoach,
+        "status",
+        new=AsyncMock(
+            return_value=CoachStatus(ready=True, message="AI coach is ready")
+        ),
+    ):
+        response = await client.get("/coach/status")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["available"] is True
+
+
+@pytest.mark.asyncio
+async def test_coach_status_unavailable(client, monkeypatch):
+    """Coach status returns available=False when API key is missing."""
+    monkeypatch.setattr("app.environment.Environment.OPENAI_API_KEY_ENV", None)
+    response = await client.get("/coach/status")
+    assert response.status_code == 200
+    data = response.json()
+    assert data["available"] is False
+    assert "OPENAI_API_KEY" in data["message"]
 
 
 @pytest.mark.asyncio
@@ -254,7 +285,7 @@ async def test_ai_coach_endpoint_conflict_on_finished_game(client):
     # The coach endpoint should short-circuit with 409 before calling the AI provider.
     app.dependency_overrides[get_ai_coach] = lambda: AsyncMock()
     try:
-        response = await client.post(f"/games/{game_id}/coach")
+        response = await client.get(f"/coach/{game_id}")
     finally:
         app.dependency_overrides.pop(get_ai_coach, None)
 

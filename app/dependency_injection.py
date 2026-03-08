@@ -8,11 +8,14 @@ from functools import lru_cache
 
 from fastapi import Depends
 from anthropic import AsyncAnthropic
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.services.ai_coach import AICoach
 from app.environment import Environment
 from app.metrics.protocol import MetricsClient
 from app.metrics.noop import NoOpMetricsClient
+from app.persistence.database import get_db
+from app.persistence.sqlalchemy_game_repository import SqlAlchemyGameRepository
 
 
 @lru_cache
@@ -30,3 +33,9 @@ def get_anthropic_client() -> AsyncAnthropic:
 
 def get_ai_coach(client: AsyncAnthropic = Depends(get_anthropic_client)) -> AICoach:
     return AICoach(client)
+
+
+def get_game_repo(
+    db: AsyncSession = Depends(get_db),
+) -> SqlAlchemyGameRepository:
+    return SqlAlchemyGameRepository(db)

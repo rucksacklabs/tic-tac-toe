@@ -142,6 +142,30 @@ Notes: Pure HTML/JS/CSS. Communicates with the FastAPI backend via REST.
     .cell.recommended {
       box-shadow: 0 0 0 3px #fbbf24;
     }
+    .tabs {
+      display: flex;
+      gap: 0;
+      margin-bottom: 1.5rem;
+      border-bottom: 2px solid #e5e7eb;
+    }
+    .tab {
+      padding: 0.5rem 1.25rem;
+      font-size: 0.95rem;
+      font-weight: 500;
+      background: none;
+      border: none;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -2px;
+      cursor: pointer;
+      color: #666;
+    }
+    .tab.active {
+      color: #2563eb;
+      border-bottom-color: #2563eb;
+    }
+    .tab:hover:not(.active) {
+      color: #333;
+    }
   </style>
   <script src="https://unpkg.com/preact@10.19.2/dist/preact.umd.js"></script>
   <script src="https://unpkg.com/preact@10.19.2/hooks/dist/hooks.umd.js"></script>
@@ -247,7 +271,23 @@ Notes: Pure HTML/JS/CSS. Communicates with the FastAPI backend via REST.
       );
     }
 
+    function Tabs({ view, onSwitch }) {
+      return (
+        <div className="tabs">
+          <button
+            className={'tab' + (view === 'play' ? ' active' : '')}
+            onClick={() => onSwitch('play')}
+          >Play</button>
+          <button
+            className={'tab' + (view === 'games' ? ' active' : '')}
+            onClick={() => onSwitch('games')}
+          >All Games</button>
+        </div>
+      );
+    }
+
     function App() {
+      const [view, setView] = useState('play');
       const [gameId, setGameId] = useState(null);
       const [board, setBoard] = useState(Array(9).fill(''));
       const [currentPlayer, setCurrentPlayer] = useState('X');
@@ -357,31 +397,36 @@ Notes: Pure HTML/JS/CSS. Communicates with the FastAPI backend via REST.
         <React.Fragment>
           <div className="card">
             <h1>Tic-Tac-Toe</h1>
-            <p className="subtitle">Play against a friend</p>
-            <ErrorBanner error={error} onDismiss={() => setError(null)} />
-            <StatusBar
-              status={status}
-              currentPlayer={currentPlayer}
-              winner={winner}
-              message={message}
-              loading={loading}
-              isSubmittingMove={isSubmittingMove}
-            />
-            {showWelcome ? (
-              <p className="welcome-prompt">Click New Game to start.</p>
-            ) : (
-              <Board board={board} onCellClick={makeMove} disabled={boardDisabled} recommendedPosition={status === 'active' ? coachPosition : null} />
+            <Tabs view={view} onSwitch={setView} />
+            {view === 'play' && (
+              <React.Fragment>
+                <ErrorBanner error={error} onDismiss={() => setError(null)} />
+                <StatusBar
+                  status={status}
+                  currentPlayer={currentPlayer}
+                  winner={winner}
+                  message={message}
+                  loading={loading}
+                  isSubmittingMove={isSubmittingMove}
+                />
+                {showWelcome ? (
+                  <p className="welcome-prompt">Click New Game to start.</p>
+                ) : (
+                  <Board board={board} onCellClick={makeMove} disabled={boardDisabled} recommendedPosition={status === 'active' ? coachPosition : null} />
+                )}
+                <div className="controls">
+                  <button
+                    type="button"
+                    className="primary"
+                    onClick={createGame}
+                    disabled={loading}
+                  >
+                    New Game
+                  </button>
+                </div>
+              </React.Fragment>
             )}
-            <div className="controls">
-              <button
-                type="button"
-                className="primary"
-                onClick={createGame}
-                disabled={loading}
-              >
-                New Game
-              </button>
-            </div>
+            {view === 'games' && <div className="games-loading">Loading games...</div>}
           </div>
           {coachAvailable === false && (
             <div class="clippy-coach">

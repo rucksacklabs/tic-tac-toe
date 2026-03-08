@@ -358,6 +358,7 @@ Notes: Pure HTML/JS/CSS. Communicates with the FastAPI backend via REST.
       const [coachLoading, setCoachLoading] = useState(false);
       const [coachVisible, setCoachVisible] = useState(false);
       const [coachAvailable, setCoachAvailable] = useState(null);
+      const [showHistory, setShowHistory] = useState(false);
 
       useEffect(() => {
         fetch(`${API_BASE}/coach/status`)
@@ -400,6 +401,7 @@ Notes: Pure HTML/JS/CSS. Communicates with the FastAPI backend via REST.
         setCoachMessage(null);
         setCoachPosition(null);
         setCoachVisible(false);
+        setShowHistory(false);
         try {
           const response = await fetch(`${API_BASE}/games`, { method: 'POST' });
           const data = await handleResponse(response, 'Failed to create game');
@@ -479,7 +481,18 @@ Notes: Pure HTML/JS/CSS. Communicates with the FastAPI backend via REST.
                   >
                     New Game
                   </button>
+                  {gameId && (
+                    <button
+                      type="button"
+                      className="primary"
+                      style={{ background: showHistory ? '#1e40af' : '' }}
+                      onClick={() => setShowHistory(h => !h)}
+                    >
+                      {showHistory ? 'Hide History' : 'Move History'}
+                    </button>
+                  )}
                 </div>
+                {showHistory && gameId && <MoveHistory gameId={gameId} />}
               </React.Fragment>
             )}
             {view === 'games' && <div className="games-loading">Loading games...</div>}

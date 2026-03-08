@@ -34,11 +34,6 @@ Notes: Pure HTML/JS/CSS. Communicates with the FastAPI backend via REST.
       font-size: 1.75rem;
       color: #1a1a1a;
     }
-    .subtitle {
-      margin: 0 0 1.5rem 0;
-      font-size: 0.95rem;
-      color: #666;
-    }
     .board {
       display: grid;
       grid-template-columns: repeat(3, minmax(60px, 100px));
@@ -165,6 +160,12 @@ Notes: Pure HTML/JS/CSS. Communicates with the FastAPI backend via REST.
     }
     .tab:hover:not(.active) {
       color: #333;
+    }
+    .games-loading {
+      text-align: center;
+      color: #888;
+      padding: 2rem 0;
+      font-size: 0.95rem;
     }
   </style>
   <script src="https://unpkg.com/preact@10.19.2/dist/preact.umd.js"></script>

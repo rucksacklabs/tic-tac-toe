@@ -581,7 +581,7 @@ Notes: Pure HTML/JS/CSS. Communicates with the FastAPI backend via REST.
                 {showHistory && gameId && <MoveHistory gameId={gameId} />}
               </React.Fragment>
             )}
-            {view === 'games' && <AllGamesView />}
+            {view === 'games' && <AllGamesView key={view} />}
           </div>
           {coachAvailable === false && (
             <div class="clippy-coach">

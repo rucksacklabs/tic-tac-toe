@@ -2,18 +2,21 @@
 Purpose: Core business logic for Tic-Tac-Toe game rules and moves.
 Architecture: Domain Layer (Service).
 Notes: Pure logic for board manipulation, win detection, and move processing.
+       Coordinates are 0-based (x, y) where (0, 0) is top-left and (2, 2) is bottom-right.
 """
 
 import json
 import random
 from typing import Protocol
 
+from app.models import Board, Player, GameStatus, MoveTrace
+
 
 class GameProtocol(Protocol):
-    board: str
-    status: str
-    winner: str | None
-    current_player: str
+    board: Board
+    status: GameStatus
+    winner: Player | None
+    current_player: Player
 
 
 WINNING_LINES = [
@@ -32,53 +35,59 @@ class GameError(ValueError):
     pass
 
 
-def create_board() -> list[str]:
-    return [""] * 9
+def new_board() -> Board:
+    return Board([None] * 9)
 
 
-def apply_move(board: list[str], player: str, position: int) -> list[str]:
-    if position < 0 or position > 8:
-        raise GameError("Position out of range (0–8)")
+def _pos(x: int, y: int) -> int:
+    """Convert (x, y) coordinates to a flat board index."""
+    return y * 3 + x
+
+
+def apply_move(*, board: Board, player: Player, x: int, y: int) -> Board:
+    if not (0 <= x <= 2 and 0 <= y <= 2):
+        raise GameError("Position out of range (x and y must be 0–2)")
     if player not in ("X", "O"):
         raise GameError("Player must be 'X' or 'O'")
+    position = _pos(x, y)
     if board[position] != "":
         raise GameError("Cell is occupied")
-    new_board = board.copy()
+    new_board = list(board)
     new_board[position] = player
     return new_board
 
 
-def check_winner(board: list[str]) -> str | None:
+def check_winner(board: Board) -> Player | None:
     for a, b, c in WINNING_LINES:
         if board[a] and board[a] == board[b] == board[c]:
             return board[a]
     return None
 
 
-def check_draw(board: list[str]) -> bool:
+def check_draw(board: Board) -> bool:
     return all(cell != "" for cell in board) and check_winner(board) is None
 
 
-def board_to_json(board: list[str]) -> str:
+def board_to_json(board: Board) -> str:
     return json.dumps(board)
 
 
-def board_from_json(data: str) -> list[str]:
-    return json.loads(data)
+def board_from_json(data: str) -> Board:
+    return Board(json.loads(data))
 
 
 def make_new_game() -> dict:
     return {
-        "board": board_to_json(create_board()),
+        "board": board_to_json(new_board()),
         "current_player": "X",
         "status": "active",
         "winner": None,
     }
 
 
-def process_move(game: GameProtocol, player: str, position: int) -> str | None:
+def process_move(game: GameProtocol, player: Player, x: int, y: int) -> str | None:
     board = board_from_json(game.board)
-    board = apply_move(board, player, position)
+    board = apply_move(board=board, player=player, x=x, y=y)
 
     winner = check_winner(board)
     if winner:
@@ -98,18 +107,22 @@ def process_move(game: GameProtocol, player: str, position: int) -> str | None:
 
 
 def play_turn_vs_computer_with_trace(
-    game: GameProtocol, position: int
-) -> tuple[str | None, list[tuple[str, int]]]:
-    """Apply a human move and optional computer response, returning move trace."""
+    game: GameProtocol, x: int, y: int
+) -> tuple[str | None, MoveTrace]:
+    """Apply a human move and optional computer response, returning move trace.
+
+    Returns a tuple of (message, applied_moves) where each applied move is a
+    (player, x, y) tuple using 0-based coordinates.
+    """
 
     board = board_from_json(game.board)
     human = game.current_player
     computer = "O" if human == "X" else "X"
-    applied_moves: list[tuple[str, int]] = []
+    applied_moves: MoveTrace = []
 
     # Human move
-    board = apply_move(board, human, position)
-    applied_moves.append((human, position))
+    board = apply_move(board=board, player=human, x=x, y=y)
+    applied_moves.append((human, x, y))
 
     winner = check_winner(board)
     if winner:
@@ -124,11 +137,11 @@ def play_turn_vs_computer_with_trace(
         return "It's a draw!", applied_moves
 
     # Computer move (random available empty cell)
-    available = [i for i, cell in enumerate(board) if cell == ""]
-    computer_position = random.choice(available)
+    available = [(i % 3, i // 3) for i, cell in enumerate(board) if cell == ""]
+    computer_x, computer_y = random.choice(available)
 
-    board = apply_move(board, computer, computer_position)
-    applied_moves.append((computer, computer_position))
+    board = apply_move(board=board, player=computer, x=computer_x, y=computer_y)
+    applied_moves.append((computer, computer_x, computer_y))
 
     winner = check_winner(board)
     if winner:
@@ -144,14 +157,3 @@ def play_turn_vs_computer_with_trace(
 
     game.board = board_to_json(board)
     return None, applied_moves
-
-
-def play_turn_vs_computer(game: GameProtocol, position: int) -> str | None:
-    """Apply a human move, then a random computer move if the game is still active.
-
-    The human always plays as the current_player on the game object. The computer
-    plays as the opposite marker and chooses a random available empty cell.
-    """
-
-    message, _ = play_turn_vs_computer_with_trace(game, position)
-    return message

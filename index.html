@@ -172,7 +172,7 @@ Notes: Pure HTML/JS/CSS. Communicates with the FastAPI backend via REST.
       max-height: 200px;
       overflow-y: auto;
       border: 1px solid #e5e7eb;
-      border-radius: 8px;
+      border-radius: 12px;
       padding: 0.5rem 0.75rem;
       font-size: 0.875rem;
       color: #444;
@@ -302,12 +302,14 @@ Notes: Pure HTML/JS/CSS. Communicates with the FastAPI backend via REST.
 
       useEffect(() => {
         if (!gameId) return;
+        const controller = new AbortController();
         setMoves(null);
         setError(null);
-        fetch(`${API_BASE}/games/${gameId}/moves`)
+        fetch(`${API_BASE}/games/${gameId}/moves`, { signal: controller.signal })
           .then(r => r.ok ? r.json() : Promise.reject('Failed to load'))
           .then(setMoves)
-          .catch(() => setError('Could not load moves'));
+          .catch(err => { if (err.name !== 'AbortError') setError('Could not load moves'); });
+        return () => controller.abort();
       }, [gameId]);
 
       if (error) return <div className="move-history"><span style={{color:'#b91c1c'}}>{error}</span></div>;

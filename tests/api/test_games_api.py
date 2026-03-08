@@ -9,38 +9,25 @@ from unittest.mock import patch
 
 import pytest
 from httpx import AsyncClient, ASGITransport
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
-from app.persistence.database import Base, get_db
+
+from app.persistence.in_memory_game_repository import InMemoryGameRepository
+from app.dependency_injection import get_game_repo
 from main import app
-
-TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
-
-test_engine = create_async_engine(TEST_DATABASE_URL, echo=False)
-TestSessionLocal = async_sessionmaker(test_engine, expire_on_commit=False)
-
-
-async def override_get_db():
-    async with TestSessionLocal() as session:
-        yield session
-
-
-@pytest.fixture(autouse=True)
-async def setup_db():
-    async with test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    yield
-    async with test_engine.begin() as conn:
-        await conn.run_sync(Base.metadata.drop_all)
 
 
 @pytest.fixture
-async def client(setup_db):
-    app.dependency_overrides[get_db] = override_get_db
+def repo():
+    return InMemoryGameRepository()
+
+
+@pytest.fixture
+async def client(repo):
+    app.dependency_overrides[get_game_repo] = lambda: repo
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
     ) as c:
         yield c
-    app.dependency_overrides.pop(get_db, None)
+    app.dependency_overrides.pop(get_game_repo, None)
 
 
 async def test_create_game(client):
@@ -91,13 +78,17 @@ async def test_make_valid_move(client):
 
 async def test_make_move_on_finished_game(client):
     # Create and immediately finish a game, then ensure further moves are rejected.
+    # Patch random.choice so O never blocks X's main diagonal (0,0)→(1,1)→(2,2).
     game_id = (await client.post("/games")).json()["id"]
-    # X at (0, 0), O at (0, 1)
-    await client.post(f"/games/{game_id}/moves", json={"x": 0, "y": 0})
-    # X at (1, 1), O at (0, 2)
-    await client.post(f"/games/{game_id}/moves", json={"x": 1, "y": 1})
-    # X at (2, 2) → Player X wins (diagonal)
-    await client.post(f"/games/{game_id}/moves", json={"x": 2, "y": 2})
+    with patch(
+        "app.services.game_service.random.choice", side_effect=lambda seq: seq[0]
+    ):
+        # X at (0, 0), O picks first available
+        await client.post(f"/games/{game_id}/moves", json={"x": 0, "y": 0})
+        # X at (1, 1), O picks first available
+        await client.post(f"/games/{game_id}/moves", json={"x": 1, "y": 1})
+        # X at (2, 2) → Player X wins (diagonal)
+        await client.post(f"/games/{game_id}/moves", json={"x": 2, "y": 2})
 
     response = await client.post(f"/games/{game_id}/moves", json={"x": 0, "y": 2})
     assert response.status_code == 409
@@ -184,8 +175,10 @@ async def test_list_game_moves_returns_chronological_history(client):
     assert len(data) == 2
     assert [move["move_number"] for move in data] == [1, 2]
     assert [move["player"] for move in data] == ["X", "O"]
-    assert data[0]["position"] == 0
-    assert data[1]["position"] in range(1, 9)  # computer picks a random available cell
+    assert data[0]["x"] == 0 and data[0]["y"] == 0
+    assert (
+        0 <= data[1]["x"] <= 2 and 0 <= data[1]["y"] <= 2
+    )  # computer picks a random available cell
 
 
 async def test_list_game_moves_not_found(client):
@@ -210,7 +203,7 @@ async def test_ai_coach_endpoint_happy_path(client):
 
     mock_coach = AsyncMock()
     mock_coach.get_ai_coach_recommendation = AsyncMock(
-        return_value=(4, "Play in the center.")
+        return_value=((1, 1), "Play in the center.")
     )
 
     app.dependency_overrides[get_ai_coach] = lambda: mock_coach
@@ -221,7 +214,7 @@ async def test_ai_coach_endpoint_happy_path(client):
 
     assert response.status_code == 200
     data = response.json()
-    assert data["recommended_position"] == 4
+    assert data["recommended_x"] == 1 and data["recommended_y"] == 1
     assert "center" in data["message"]
     assert data["game"]["id"] == game_id
 

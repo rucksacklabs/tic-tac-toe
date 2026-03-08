@@ -167,6 +167,30 @@ Notes: Pure HTML/JS/CSS. Communicates with the FastAPI backend via REST.
       padding: 2rem 0;
       font-size: 0.95rem;
     }
+    .move-history {
+      margin-top: 1rem;
+      max-height: 200px;
+      overflow-y: auto;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 0.5rem 0.75rem;
+      font-size: 0.875rem;
+      color: #444;
+    }
+    .move-history-item {
+      padding: 0.2rem 0;
+      border-bottom: 1px solid #f3f4f6;
+      font-variant-numeric: tabular-nums;
+    }
+    .move-history-item:last-child {
+      border-bottom: none;
+    }
+    .move-history-empty {
+      color: #999;
+      font-style: italic;
+      text-align: center;
+      padding: 0.5rem 0;
+    }
   </style>
   <script src="https://unpkg.com/preact@10.19.2/dist/preact.umd.js"></script>
   <script src="https://unpkg.com/preact@10.19.2/hooks/dist/hooks.umd.js"></script>
@@ -268,6 +292,35 @@ Notes: Pure HTML/JS/CSS. Communicates with the FastAPI backend via REST.
         <div className="error-banner" role="alert">
           <span>{error}</span>
           <button type="button" onClick={onDismiss} aria-label="Dismiss">×</button>
+        </div>
+      );
+    }
+
+    function MoveHistory({ gameId }) {
+      const [moves, setMoves] = useState(null);
+      const [error, setError] = useState(null);
+
+      useEffect(() => {
+        if (!gameId) return;
+        setMoves(null);
+        setError(null);
+        fetch(`${API_BASE}/games/${gameId}/moves`)
+          .then(r => r.ok ? r.json() : Promise.reject('Failed to load'))
+          .then(setMoves)
+          .catch(() => setError('Could not load moves'));
+      }, [gameId]);
+
+      if (error) return <div className="move-history"><span style={{color:'#b91c1c'}}>{error}</span></div>;
+      if (moves === null) return <div className="move-history"><span className="move-history-empty">Loading...</span></div>;
+      if (moves.length === 0) return <div className="move-history"><span className="move-history-empty">No moves yet</span></div>;
+
+      return (
+        <div className="move-history">
+          {moves.map(m => (
+            <div key={m.id} className="move-history-item">
+              #{m.move_number} {m.player} → ({m.x}, {m.y})
+            </div>
+          ))}
         </div>
       );
     }

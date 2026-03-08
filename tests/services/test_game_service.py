@@ -6,7 +6,7 @@ Notes: Verifies board manipulation, win/draw detection, and move rules.
 
 import pytest
 from app.services.game_service import (
-    create_board,
+    new_board,
     apply_move,
     check_winner,
     check_draw,
@@ -17,26 +17,32 @@ from app.services.game_service import (
 
 
 def test_create_board_returns_9_empty_cells():
-    board = create_board()
+    board = new_board()
     assert board == [""] * 9
 
 
 def test_apply_move_places_player():
-    board = [""] * 9
-    result = apply_move(board, "X", 0)
+    board = new_board()
+    result = apply_move(board=board, player="X", x=0, y=0)
     assert result[0] == "X"
 
 
 def test_apply_move_raises_on_occupied_cell():
     board = ["X"] + [""] * 8
     with pytest.raises(GameError, match="occupied"):
-        apply_move(board, "O", 0)
+        apply_move(board=board, player="O", x=0, y=0)
 
 
 def test_apply_move_raises_on_out_of_bounds():
-    board = [""] * 9
+    board = new_board()
     with pytest.raises(GameError, match="out of range"):
-        apply_move(board, "X", 9)
+        apply_move(board=board, player="X", x=3, y=0)
+
+
+def test_apply_move_raises_on_out_of_bounds_y():
+    board = new_board()
+    with pytest.raises(GameError, match="out of range"):
+        apply_move(board=board, player="X", x=0, y=3)
 
 
 def test_check_winner_detects_row():
@@ -55,7 +61,7 @@ def test_check_winner_detects_diagonal():
 
 
 def test_check_winner_returns_none_when_no_winner():
-    board = [""] * 9
+    board = new_board()
     assert check_winner(board) is None
 
 
@@ -70,9 +76,9 @@ def test_check_draw_false_when_not_full():
 
 
 def test_apply_move_raises_on_invalid_player():
-    board = [""] * 9
+    board = new_board()
     with pytest.raises(GameError, match="Player must be"):
-        apply_move(board, "Z", 0)
+        apply_move(board=board, player="Z", x=0, y=0)
 
 
 def test_computer_picks_random_available_cell():
@@ -87,8 +93,8 @@ def test_computer_picks_random_available_cell():
     chosen_positions = set()
     for _ in range(20):
         game = FakeGame()
-        _, moves = play_turn_vs_computer_with_trace(game, 1)
-        computer_moves = [pos for player, pos in moves if player == "X"]
+        _, moves = play_turn_vs_computer_with_trace(game, 1, 0)
+        computer_moves = [(x, y) for player, x, y in moves if player == "X"]
         if computer_moves:
             chosen_positions.add(computer_moves[0])
 

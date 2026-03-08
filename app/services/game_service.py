@@ -36,7 +36,7 @@ class GameError(ValueError):
 
 
 def new_board() -> Board:
-    return Board([None] * 9)
+    return [""] * 9
 
 
 def _pos(x: int, y: int) -> int:
@@ -73,7 +73,7 @@ def board_to_json(board: Board) -> str:
 
 
 def board_from_json(data: str) -> Board:
-    return Board(json.loads(data))
+    return json.loads(data)
 
 
 def make_new_game() -> dict:

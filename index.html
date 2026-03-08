@@ -349,10 +349,12 @@ Notes: Pure HTML/JS/CSS. Communicates with the FastAPI backend via REST.
       const [expandedId, setExpandedId] = useState(null);
 
       useEffect(() => {
-        fetch(`${API_BASE}/games`)
+        const controller = new AbortController();
+        fetch(`${API_BASE}/games`, { signal: controller.signal })
           .then(r => r.ok ? r.json() : Promise.reject('Failed to load'))
           .then(data => setGames(data.slice().reverse()))
-          .catch(() => setError('Could not load games'));
+          .catch(err => { if (err.name !== 'AbortError') setError('Could not load games'); });
+        return () => controller.abort();
       }, []);
 
       if (error) return <p style={{color:'#b91c1c', textAlign:'center'}}>{error}</p>;

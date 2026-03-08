@@ -7,11 +7,9 @@ Notes: Handles request validation, routes to business logic services, and persis
 import time
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.persistence.database import get_db
 from app.models import Game, Move
+from app.persistence.game_repository import GameRepository
 from app.persistence.schemas import (
     AICoachResponse,
     GameResponse,
@@ -24,83 +22,76 @@ from app.services.game_service import (
     make_new_game,
     play_turn_vs_computer_with_trace,
 )
-from app.dependency_injection import get_ai_coach, get_metrics
+from app.dependency_injection import get_ai_coach, get_metrics, get_game_repo
 from app.services.ai_coach import AICoach, AICoachError
 from app.metrics.protocol import MetricsClient
 
 router = APIRouter(prefix="/games", tags=["games"])
 
 
-@router.post("", response_model=GameResponse, status_code=201)
+@router.post("", status_code=201)
 async def create_game(
-    db: AsyncSession = Depends(get_db),
+    repo: GameRepository = Depends(get_game_repo),
     metrics: MetricsClient = Depends(get_metrics),
-):
-    game = Game(**make_new_game())
-    db.add(game)
-    await db.commit()
-    await db.refresh(game)
+) -> GameResponse:
+    game = await repo.create(make_new_game())
     metrics.increment("game.created")
     return game
 
 
-@router.get("/{game_id}", response_model=GameResponse)
-async def get_game(game_id: str, db: AsyncSession = Depends(get_db)):
-    game = await db.get(Game, game_id)
+@router.get("/{game_id}")
+async def get_game(
+    game_id: str,
+    repo: GameRepository = Depends(get_game_repo),
+) -> GameResponse:
+    game = await repo.get(game_id)
     if not game:
         raise HTTPException(status_code=404, detail="Game not found")
     return game
 
 
-@router.get("", response_model=list[GameResponse])
-async def list_games(db: AsyncSession = Depends(get_db)):
-    result = await db.execute(
-        select(Game).order_by(Game.created_at.asc(), Game.id.asc())
-    )
-    return list(result.scalars().all())
+@router.get("")
+async def list_games(
+    repo: GameRepository = Depends(get_game_repo),
+) -> list[GameResponse]:
+    return await repo.list_all()
 
 
-@router.post("/{game_id}/moves", response_model=MoveResponse)
+@router.post("/{game_id}/moves")
 async def make_move(
     game_id: str,
     move: MoveRequest,
-    db: AsyncSession = Depends(get_db),
+    repo: GameRepository = Depends(get_game_repo),
     metrics: MetricsClient = Depends(get_metrics),
-):
-    game = await db.get(Game, game_id)
+) -> MoveResponse:
+    game = await repo.get(game_id)
     if not game:
         raise HTTPException(status_code=404, detail="Game not found")
     if game.status != "active":
         raise HTTPException(status_code=409, detail=f"Game is already {game.status}")
 
-    # Map 0-based (x, y) coordinates to an internal 0–8 position index
-    position = move.y * 3 + move.x
-
     try:
-        message, applied_moves = play_turn_vs_computer_with_trace(game, position)
+        message, applied_moves = play_turn_vs_computer_with_trace(game, move.x, move.y)
     except GameError as e:
         raise HTTPException(status_code=422, detail=str(e))
 
-    current_max_move_number = await db.scalar(
-        select(func.coalesce(func.max(Move.move_number), 0)).where(
-            Move.game_id == game_id
-        )
-    )
-    next_move_number = int(current_max_move_number or 0) + 1
+    move_count = await repo.count_moves(game_id)
+    next_move_number = move_count + 1
 
-    for player, move_position in applied_moves:
-        db.add(
-            Move(
-                game_id=game_id,
-                move_number=next_move_number,
-                player=player,
-                position=move_position,
-            )
+    moves_to_add = []
+    for player, move_x, move_y in applied_moves:
+        moves_to_add.append(
+            {
+                "move_number": next_move_number,
+                "player": player,
+                "x": move_x,
+                "y": move_y,
+            }
         )
         next_move_number += 1
 
-    await db.commit()
-    await db.refresh(game)
+    await repo.add_moves(game_id, moves_to_add)
+    game = await repo.save(game)
 
     if game.status == "won":
         outcome = f"{game.winner.lower()}_wins" if game.winner else "none"
@@ -116,41 +107,37 @@ async def make_move(
 
 
 @router.get("/{game_id}/moves", response_model=list[MoveHistoryItem])
-async def list_game_moves(game_id: str, db: AsyncSession = Depends(get_db)):
-    game = await db.get(Game, game_id)
+async def list_game_moves(
+    game_id: str,
+    repo: GameRepository = Depends(get_game_repo),
+):
+    game = await repo.get(game_id)
     if not game:
         raise HTTPException(status_code=404, detail="Game not found")
-
-    result = await db.execute(
-        select(Move)
-        .where(Move.game_id == game_id)
-        .order_by(Move.move_number.asc(), Move.created_at.asc(), Move.id.asc())
-    )
-    return list(result.scalars().all())
+    return await repo.get_moves(game_id)
 
 
 @router.delete("/{game_id}", status_code=204)
 async def delete_game(
     game_id: str,
-    db: AsyncSession = Depends(get_db),
+    repo: GameRepository = Depends(get_game_repo),
     metrics: MetricsClient = Depends(get_metrics),
 ):
-    game = await db.get(Game, game_id)
+    game = await repo.get(game_id)
     if not game:
         raise HTTPException(status_code=404, detail="Game not found")
-    await db.delete(game)
-    await db.commit()
+    await repo.delete(game_id)
     metrics.increment("game.deleted")
 
 
 @router.post("/{game_id}/coach", response_model=AICoachResponse)
 async def coach_game(
     game_id: str,
-    db: AsyncSession = Depends(get_db),
+    repo: GameRepository = Depends(get_game_repo),
     coach: AICoach = Depends(get_ai_coach),
     metrics: MetricsClient = Depends(get_metrics),
 ):
-    game = await db.get(Game, game_id)
+    game = await repo.get(game_id)
     if not game:
         raise HTTPException(status_code=404, detail="Game not found")
     if game.status != "active":
@@ -167,8 +154,10 @@ async def coach_game(
     duration_ms = (time.monotonic() - start) * 1000
     metrics.timing("ai_coach.duration_ms", duration_ms)
 
+    recommended_x, recommended_y = recommended_position
     return AICoachResponse(
         game=GameResponse.model_validate(game),
-        recommended_position=recommended_position,
+        recommended_x=recommended_x,
+        recommended_y=recommended_y,
         message=message,
     )

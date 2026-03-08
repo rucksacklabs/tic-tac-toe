@@ -169,7 +169,7 @@ Notes: Pure HTML/JS/CSS. Communicates with the FastAPI backend via REST.
     }
 
     function Cell({ value, onClick, disabled, isRecommended }) {
-      const className = ['cell', value.toLowerCase(), disabled ? 'disabled' : '', isRecommended ? 'recommended' : ''].filter(Boolean).join(' ');
+      const className = ['cell', (value && value !== '.') ? value.toLowerCase() : '', disabled ? 'disabled' : '', isRecommended ? 'recommended' : ''].filter(Boolean).join(' ');
       return (
         <button
           type="button"
@@ -178,7 +178,7 @@ Notes: Pure HTML/JS/CSS. Communicates with the FastAPI backend via REST.
           disabled={disabled}
           aria-label={value ? `Cell ${value}` : 'Empty cell'}
         >
-          {value || '\u00A0'}
+          {(value && value !== '.') ? value : '\u00A0'}
         </button>
       );
     }
@@ -311,7 +311,7 @@ Notes: Pure HTML/JS/CSS. Communicates with the FastAPI backend via REST.
 
       const makeMove = useCallback(async (position) => {
         if (!gameId || status !== 'active') return;
-        if (board[position] !== '') {
+        if (board[position] !== '' && board[position] !== '.') {
           setError('Cell is occupied');
           return;
         }

@@ -10,9 +10,10 @@ import json
 from typing import Any
 
 from anthropic import APIError, AsyncAnthropic
+from anthropic.types import MessageParam
 from pydantic import BaseModel, Field
 
-from app.models import Game
+from app.models import Board, Game
 from app.environment import Environment
 from app.services.game_service import board_from_json
 
@@ -29,9 +30,11 @@ class CoachRecommendation(BaseModel):
     message: str
 
 
-def _build_board_context(board: list[str]) -> dict[str, Any]:
+def _build_board_context(board: Board) -> dict[str, Any]:
     moves_played = sum(1 for cell in board if cell != "")
-    available_positions = [i for i, cell in enumerate(board) if cell == ""]
+    available_positions = [
+        {"position": i} for i, cell in enumerate(board) if cell == ""
+    ]
     return {
         "board": board,
         "moves_played": moves_played,
@@ -46,7 +49,7 @@ def _build_system_prompt() -> str:
     )
 
 
-def _build_messages(game: Game) -> list[dict[str, str]]:
+def _build_messages(game: Game) -> list[MessageParam]:
     board = board_from_json(game.board)
     context = _build_board_context(board)
 
@@ -66,7 +69,7 @@ def _build_messages(game: Game) -> list[dict[str, str]]:
     )
 
     return [
-        {"role": "user", "content": user},
+        MessageParam(role="user", content=user),
     ]
 
 
@@ -106,12 +109,10 @@ class AICoach:
         if response.stop_reason == "refusal" or response.parsed_output is None:
             raise AICoachError("AI coach refused to provide a recommendation")
 
-        position = response.parsed_output.recommended_position
+        rec_pos = response.parsed_output.recommended_position
         message = response.parsed_output.message
 
-        if position not in available_positions:
-            raise AICoachError(
-                f"AI recommended position {position} is already occupied"
-            )
+        if {"position": rec_pos} not in available_positions:
+            raise AICoachError(f"AI recommended position {rec_pos} is already occupied")
 
-        return position, message
+        return rec_pos, message

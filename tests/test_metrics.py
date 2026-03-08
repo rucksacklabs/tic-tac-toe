@@ -66,7 +66,7 @@ async def client(repo, recording_metrics):
     app.dependency_overrides.pop(get_metrics, None)
 
 
-def mock_coach_override(recommendation=((1, 1), "Play the center!")):
+def mock_coach_override(recommendation=(4, "Play the center!")):
     coach = AsyncMock(spec=AICoach)
     coach.get_ai_coach_recommendation = AsyncMock(return_value=recommendation)
     return lambda: coach

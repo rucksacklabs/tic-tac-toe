@@ -7,6 +7,7 @@ Notes: Stores games and moves in plain dicts. No database required.
 
 import uuid
 from datetime import datetime, timezone
+from typing import Any
 
 from app.models import Game, Move
 
@@ -19,7 +20,7 @@ class InMemoryGameRepository:
     async def get(self, game_id: str) -> Game | None:
         return self._games.get(game_id)
 
-    async def create(self, game_data: dict) -> Game:
+    async def create(self, game_data: dict[str, Any]) -> Game:
         game = Game(**game_data)
         if not game.id:
             game.id = str(uuid.uuid4())
@@ -40,7 +41,7 @@ class InMemoryGameRepository:
         self._games.pop(game_id, None)
         self._moves.pop(game_id, None)
 
-    async def add_moves(self, game_id: str, moves: list[dict]) -> None:
+    async def add_moves(self, game_id: str, moves: list[dict[str, Any]]) -> None:
         if game_id not in self._moves:
             self._moves[game_id] = []
         for move_data in moves:

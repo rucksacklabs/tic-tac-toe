@@ -10,6 +10,8 @@ from typing import Literal
 
 from pydantic import BaseModel, field_serializer, field_validator
 
+from app.models import GameStatus, Player
+
 
 Cell = Literal["", "X", "O"]
 
@@ -30,19 +32,19 @@ class Board(BaseModel):
     @classmethod
     def parse_cells(cls, v: str | list) -> list:
         if isinstance(v, str):
-            return json.loads(v)
-        return v
+            v = json.loads(v)
+        return ["" if cell == "." else cell for cell in v]
 
-    def to_list(self) -> list[str]:
+    def to_list(self) -> list[Cell]:
         return list(self.cells)
 
 
 class GameResponse(BaseModel):
     id: str
     board: Board
-    current_player: str
-    status: str
-    winner: str | None
+    current_player: Player
+    status: GameStatus
+    winner: Player | None
     created_at: datetime | None = None
 
     model_config = {"from_attributes": True}
@@ -58,11 +60,11 @@ class GameResponse(BaseModel):
             return Board(cells=v)
         if isinstance(v, dict) and "cells" in v:
             return Board(**v)
-        return Board(cells=v)
+        raise ValueError(f"Cannot parse board from {type(v).__name__}: {v!r}")
 
     @field_serializer("board")
-    def serialize_board(self, board: Board) -> list[str]:
-        return board.to_list()
+    def serialize_board(self, board: Board) -> list:
+        return ["." if cell == "" else cell for cell in board.to_list()]
 
 
 class MoveRequest(BaseModel):
@@ -91,8 +93,9 @@ class MoveHistoryItem(BaseModel):
     id: str
     game_id: str
     move_number: int
-    player: Literal["X", "O"]
-    position: int
+    player: Player
+    x: int
+    y: int
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -104,5 +107,6 @@ class AICoachRequest(BaseModel):
 
 class AICoachResponse(BaseModel):
     game: GameResponse
-    recommended_position: int
+    recommended_x: int
+    recommended_y: int
     message: str

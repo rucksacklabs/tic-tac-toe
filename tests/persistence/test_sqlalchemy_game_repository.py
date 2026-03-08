@@ -87,8 +87,8 @@ async def test_add_moves_and_get_moves(repo):
     await repo.add_moves(
         game.id,
         [
-            {"player": "X", "move_number": 1, "x": 0, "y": 0},
-            {"player": "O", "move_number": 2, "x": 1, "y": 1},
+            {"player": "X", "move_number": 1, "position": 0},
+            {"player": "O", "move_number": 2, "position": 4},
         ],
     )
     moves = await repo.get_moves(game.id)
@@ -103,7 +103,7 @@ async def test_count_moves(repo):
     await repo.add_moves(
         game.id,
         [
-            {"player": "X", "move_number": 1, "x": 0, "y": 0},
+            {"player": "X", "move_number": 1, "position": 0},
         ],
     )
     assert await repo.count_moves(game.id) == 1
@@ -114,8 +114,8 @@ async def test_get_moves_returns_ordered_by_move_number(repo):
     await repo.add_moves(
         game.id,
         [
-            {"player": "O", "move_number": 2, "x": 1, "y": 1},
-            {"player": "X", "move_number": 1, "x": 0, "y": 0},
+            {"player": "O", "move_number": 2, "position": 4},
+            {"player": "X", "move_number": 1, "position": 0},
         ],
     )
     moves = await repo.get_moves(game.id)
@@ -127,7 +127,7 @@ async def test_delete_cascades_to_moves(repo):
     await repo.add_moves(
         game.id,
         [
-            {"player": "X", "move_number": 1, "x": 0, "y": 0},
+            {"player": "X", "move_number": 1, "position": 0},
         ],
     )
     await repo.delete(game.id)

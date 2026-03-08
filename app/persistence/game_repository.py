@@ -6,7 +6,7 @@ Notes: Implementations include SqlAlchemyGameRepository (production)
        and InMemoryGameRepository (testing).
 """
 
-from typing import Protocol
+from typing import Any, Protocol
 
 from app.models import Game, Move
 
@@ -16,7 +16,7 @@ class GameRepository(Protocol):
         """Fetch a game by ID. Returns None if not found."""
         ...
 
-    async def create(self, game_data: dict) -> Game:
+    async def create(self, game_data: dict[str, Any]) -> Game:
         """Create and persist a new game from an attribute dict."""
         ...
 
@@ -32,10 +32,10 @@ class GameRepository(Protocol):
         """Delete a game and its associated moves."""
         ...
 
-    async def add_moves(self, game_id: str, moves: list[dict]) -> None:
+    async def add_moves(self, game_id: str, moves: list[dict[str, Any]]) -> None:
         """Append move records to a game.
 
-        Each dict must contain keys: player, move_number, x, y.
+        Each dict must contain keys: player, move_number, position.
         """
         ...
 

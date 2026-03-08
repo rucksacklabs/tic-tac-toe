@@ -16,10 +16,10 @@ from app.services.ai_coach import (
     CoachRecommendation,
     _build_board_context,
 )
-from app.models import Game
+from app.models import Board, Game
 
 
-def make_game(board: list[str] | None = None) -> Game:
+def make_game(board: Board | None = None) -> Game:
     game = Game()
     game.board = json.dumps(board or [""] * 9)
     game.current_player = "X"
@@ -43,7 +43,7 @@ def test_build_board_context_basic():
     board = ["X", "O", "", "", "", "", "", "", ""]
     ctx = _build_board_context(board)
     assert ctx["moves_played"] == 2
-    assert ctx["available_positions"] == list(range(2, 9))
+    assert ctx["available_positions"] == [{"position": i} for i in range(2, 9)]
 
 
 @pytest.mark.asyncio
@@ -65,7 +65,7 @@ async def test_get_ai_coach_recommendation_uses_client_and_parses_result():
 
 @pytest.mark.asyncio
 async def test_get_ai_coach_recommendation_raises_on_occupied_position():
-    # Board with X at position 0 — AI recommends position 0 (occupied)
+    # Board with X at position 0 — AI recommends position 0 which is occupied
     game = make_game(board=["X", "", "", "", "", "", "", "", ""])
 
     mock_client = AsyncMock()

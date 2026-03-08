@@ -2,7 +2,8 @@
 # Architecture: Tooling/Automation.
 # Notes: Simplifies Alembic migration commands and database setup.
 .PHONY: help install run test format lint coverage clean migrate migration \
-        docker-build docker-run helm-lint helm-template helm-install helm-upgrade helm-uninstall
+        docker-build docker-run helm-lint helm-template helm-install helm-upgrade helm-uninstall \
+        openapi
 
 help:
 	@echo "Usage: make [target]"
@@ -13,8 +14,10 @@ help:
 	@echo "  test        Run tests with pytest"
 	@echo "  format      Format code with ruff"
 	@echo "  lint        Lint with ruff"
+	@echo "  typecheck   Type-check with ty"
 	@echo "  coverage    Run tests with coverage report"
 	@echo "  clean       Remove cache and coverage artifacts"
+	@echo "  openapi     Generate OpenAPI spec to openapi.json"
 	@echo "  migrate     Apply all pending migrations"
 	@echo "  migration   Generate a new migration (usage: make migration MSG='describe change')"
 	@echo ""
@@ -50,6 +53,10 @@ lint:
 check:
 	uv run ruff format .
 	uv run ruff check .
+	uv run ty check app
+
+typecheck:
+	uv run ty check app
 
 coverage:
 	uv run pytest --cov=app --cov-report=term-missing
@@ -94,3 +101,7 @@ helm-upgrade:
 
 helm-uninstall:
 	helm uninstall $(RELEASE_NAME)
+
+openapi:
+	uv run python -c "import json; from main import app; print(json.dumps(app.openapi(), indent=2))" > openapi.json
+	@echo "OpenAPI spec written to openapi.json"

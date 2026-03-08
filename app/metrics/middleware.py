@@ -7,13 +7,15 @@ Notes: Records request count and duration for every HTTP request.
 
 import time
 
-from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.requests import Request
 from starlette.responses import Response
 
 
 class MetricsMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next) -> Response:
+    async def dispatch(
+        self, request: Request, call_next: RequestResponseEndpoint
+    ) -> Response:
         start = time.monotonic()
         response = await call_next(request)
         duration_ms = (time.monotonic() - start) * 1000

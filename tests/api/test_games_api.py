@@ -36,7 +36,7 @@ async def test_create_game(client):
     data = response.json()
     assert data["status"] == "active"
     assert data["current_player"] == "X"
-    assert data["board"] == [""] * 9
+    assert data["board"] == ["."] * 9
 
 
 async def test_get_game(client):
@@ -203,7 +203,7 @@ async def test_ai_coach_endpoint_happy_path(client):
 
     mock_coach = AsyncMock()
     mock_coach.get_ai_coach_recommendation = AsyncMock(
-        return_value=((1, 1), "Play in the center.")
+        return_value=(4, "Play in the center.")
     )
 
     app.dependency_overrides[get_ai_coach] = lambda: mock_coach

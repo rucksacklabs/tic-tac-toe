@@ -2,18 +2,19 @@
 Purpose: Core business logic for Tic-Tac-Toe game rules and moves.
 Architecture: Domain Layer (Service).
 Notes: Pure logic for board manipulation, win detection, and move processing.
-       Coordinates are 0-based (x, y) where (0, 0) is top-left and (2, 2) is bottom-right.
+       Internally uses flat position index (0–8). Translation to/from x/y coordinates
+       happens exclusively at the API layer.
 """
 
 import json
 import random
-from typing import Protocol
+from typing import Protocol, cast
 
-from app.models import Board, Player, GameStatus, MoveTrace
+from app.models import Board, Cell, Player, GameStatus, MoveTrace
 
 
 class GameProtocol(Protocol):
-    board: Board
+    board: str
     status: GameStatus
     winner: Player | None
     current_player: Player
@@ -36,20 +37,14 @@ class GameError(ValueError):
 
 
 def new_board() -> Board:
-    return [""] * 9
+    return cast(Board, [""] * 9)
 
 
-def _pos(x: int, y: int) -> int:
-    """Convert (x, y) coordinates to a flat board index."""
-    return y * 3 + x
-
-
-def apply_move(*, board: Board, player: Player, x: int, y: int) -> Board:
-    if not (0 <= x <= 2 and 0 <= y <= 2):
-        raise GameError("Position out of range (x and y must be 0–2)")
+def apply_move(*, board: Board, player: Player, position: int) -> Board:
+    if not (0 <= position <= 8):
+        raise GameError("Position out of range (must be 0–8)")
     if player not in ("X", "O"):
         raise GameError("Player must be 'X' or 'O'")
-    position = _pos(x, y)
     if board[position] != "":
         raise GameError("Cell is occupied")
     new_board = list(board)
@@ -59,8 +54,9 @@ def apply_move(*, board: Board, player: Player, x: int, y: int) -> Board:
 
 def check_winner(board: Board) -> Player | None:
     for a, b, c in WINNING_LINES:
-        if board[a] and board[a] == board[b] == board[c]:
-            return board[a]
+        cell = board[a]
+        if cell and cell == board[b] == board[c]:
+            return cell
     return None
 
 
@@ -85,9 +81,9 @@ def make_new_game() -> dict:
     }
 
 
-def process_move(game: GameProtocol, player: Player, x: int, y: int) -> str | None:
+def process_move(game: GameProtocol, player: Player, position: int) -> str | None:
     board = board_from_json(game.board)
-    board = apply_move(board=board, player=player, x=x, y=y)
+    board = apply_move(board=board, player=player, position=position)
 
     winner = check_winner(board)
     if winner:
@@ -107,12 +103,12 @@ def process_move(game: GameProtocol, player: Player, x: int, y: int) -> str | No
 
 
 def play_turn_vs_computer_with_trace(
-    game: GameProtocol, x: int, y: int
+    game: GameProtocol, position: int
 ) -> tuple[str | None, MoveTrace]:
     """Apply a human move and optional computer response, returning move trace.
 
     Returns a tuple of (message, applied_moves) where each applied move is a
-    (player, x, y) tuple using 0-based coordinates.
+    (player, position) tuple using flat index (0–8).
     """
 
     board = board_from_json(game.board)
@@ -121,8 +117,8 @@ def play_turn_vs_computer_with_trace(
     applied_moves: MoveTrace = []
 
     # Human move
-    board = apply_move(board=board, player=human, x=x, y=y)
-    applied_moves.append((human, x, y))
+    board = apply_move(board=board, player=human, position=position)
+    applied_moves.append((human, position))
 
     winner = check_winner(board)
     if winner:
@@ -137,11 +133,11 @@ def play_turn_vs_computer_with_trace(
         return "It's a draw!", applied_moves
 
     # Computer move (random available empty cell)
-    available = [(i % 3, i // 3) for i, cell in enumerate(board) if cell == ""]
-    computer_x, computer_y = random.choice(available)
+    available = [i for i, cell in enumerate(board) if cell == ""]
+    computer_pos = random.choice(available)
 
-    board = apply_move(board=board, player=computer, x=computer_x, y=computer_y)
-    applied_moves.append((computer, computer_x, computer_y))
+    board = apply_move(board=board, player=computer, position=computer_pos)
+    applied_moves.append((computer, computer_pos))
 
     winner = check_winner(board)
     if winner:

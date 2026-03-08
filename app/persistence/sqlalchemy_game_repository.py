@@ -6,6 +6,8 @@ Notes: This is the only module that depends on AsyncSession.
        All SQLAlchemy query and transaction logic lives here.
 """
 
+from typing import Any
+
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -19,7 +21,7 @@ class SqlAlchemyGameRepository:
     async def get(self, game_id: str) -> Game | None:
         return await self._session.get(Game, game_id)
 
-    async def create(self, game_data: dict) -> Game:
+    async def create(self, game_data: dict[str, Any]) -> Game:
         game = Game(**game_data)
         self._session.add(game)
         await self._session.commit()
@@ -43,7 +45,7 @@ class SqlAlchemyGameRepository:
             await self._session.delete(game)
             await self._session.commit()
 
-    async def add_moves(self, game_id: str, moves: list[dict]) -> None:
+    async def add_moves(self, game_id: str, moves: list[dict[str, Any]]) -> None:
         for move_data in moves:
             self._session.add(Move(game_id=game_id, **move_data))
         await self._session.commit()

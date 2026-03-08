@@ -1,8 +1,3 @@
-<!--
-Purpose: Project overview, setup instructions, and API documentation.
-Architecture: Documentation.
-Notes: Contains the Move Contract and Board Representation details which are critical for frontend/API alignment.
--->
 # Tic-Tac-Toe API
 
 A REST API for multi-session tic-tac-toe built with FastAPI, SQLAlchemy, and SQLite.
@@ -49,8 +44,8 @@ Interactive docs at http://localhost:8000/docs
 ### Board Representation
 
 - API responses use a flat 9-cell board array:
-  - `["", "", "", "", "", "", "", "", ""]`
-  - empty cells are `""`, not `"."`
+  - `[".", ".", ".", ".", ".", ".", ".", ".", "."]`
+  - empty cells are `"."`, occupied cells are `"X"` or `"O"`
 - This representation is intentionally kept for simpler frontend rendering.
 
 ### Example
@@ -80,17 +75,12 @@ Internal positions are numbered 0–8, left to right, top to bottom:
 - No authentication: "games I have played" is interpreted as all games in the database.
 - Game list and move history are returned oldest-first (chronological ascending).
 - Computer strategy picks a random available empty cell, favoring simplicity over stronger play.
-- Data is persisted in SQLite via SQLAlchemy async ORM; no migrations are set up in this scaffold.
+- Data is persisted in SQLite via SQLAlchemy async ORM with Alembic managing schema migrations.
 
-## Notes
+## Extra features
 
-- Time spent is not tracked historically in this repo. This alignment pass implemented:
-  - game and move chronological list endpoints
-  - move persistence model
-  - README alignment with API behavior
-- Extra features beyond the core brief:
-  - Single-page UI in `index.html`
-  - AI coach endpoint (`POST /games/{id}/coach`)
+- Single-page UI in `index.html`
+- AI coach endpoint (`POST /games/{id}/coach`)
 
 ## Configuration
 
@@ -100,7 +90,7 @@ The application uses environment variables for configuration. You can provide th
 |----------|---------|-------------|
 | `DATABASE_URL` | `sqlite+aiosqlite:///./tic_tac_toe.db` | SQLAlchemy connection string |
 | `ANTHROPIC_API_KEY` | (required for coaching) | API key for AI coaching |
-| `AI_COACH_MODEL` | `claude-opus-4-6` | Claude model for AI coaching |
+| `AI_COACH_MODEL` | `claude-haiku-4-5` | Claude model for AI coaching |
 
 ## Database
 

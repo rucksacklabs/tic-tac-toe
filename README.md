@@ -97,11 +97,11 @@ Some more assumptions and notes:
 
 **UI Demo**
 
-https://github.com/user-attachments/assets/c460b48b-9ff9-4ecc-8978-2a76ffa9b199
+https://github.com/user-attachments/assets/8c328070-e14d-4374-9e0d-71f0466e59ed
 
 **API Demo**
 
-https://github.com/user-attachments/assets/2af2d8b6-aeff-490c-a043-8ca6a7a87885
+https://github.com/user-attachments/assets/dadc12ac-527b-4b61-846a-8ef5770fcc8a
 
 ## Extra features
 

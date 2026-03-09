@@ -20,7 +20,7 @@ make run
 ```
 
 API available at http://localhost:8000
-Interactive docs at http://localhost:8000/docs
+UI available at http://localhost:8000/
 
 ## API
 
@@ -51,13 +51,19 @@ Interactive docs at http://localhost:8000/docs
 ### Example
 
 ```bash
+# List all games
+curl -X GET http://localhost:8000/games
+
 # Create a game
-curl -X POST -s -o /dev/null http://localhost:8000/games | jq '.id' | tr -d '"' | export id=$(cat -) | echo "Game ID: $id"
+curl -X POST http://localhost:8000/games
 
 # Human move at top-left (x=0, y=0); response includes computer move too
 curl -X POST http://localhost:8000/games/${id}/moves \
   -H "Content-Type: application/json" \
   -d '{"x": 0, "y": 0}'
+  
+# List past game moves
+curl -X GET http://localhost:8000/games/${id}/moves
 ```
 
 Internally positions are numbered 0–8, left to right, top to bottom:
@@ -86,6 +92,16 @@ Some more assumptions and notes:
 - Game list and move history are returned oldest-first (chronological ascending).
 - Computer strategy picks a random available empty cell.
 - Data is persisted in SQLite or PostgreSQL via SQLAlchemy async ORM with Alembic managing schema migrations.
+
+## Demos
+
+**UI Demo**
+
+<video src="docs/demo_ui.mov" controls width="100%"></video>
+
+**API Demo**
+
+<video src="docs/demo_api.mov" controls width="100%"></video>
 
 ## Extra features
 

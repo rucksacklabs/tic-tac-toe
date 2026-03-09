@@ -97,11 +97,11 @@ Some more assumptions and notes:
 
 **UI Demo**
 
-<video src="docs/demo_ui.mov" controls width="100%"></video>
+https://github.com/user-attachments/assets/c460b48b-9ff9-4ecc-8978-2a76ffa9b199
 
 **API Demo**
 
-<video src="docs/demo_api.mov" controls width="100%"></video>
+https://github.com/user-attachments/assets/2af2d8b6-aeff-490c-a043-8ca6a7a87885
 
 ## Extra features
 

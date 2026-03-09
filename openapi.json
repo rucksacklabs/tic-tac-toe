@@ -220,13 +220,34 @@
         }
       }
     },
-    "/games/{game_id}/coach": {
-      "post": {
+    "/coach/status": {
+      "get": {
         "tags": [
-          "games"
+          "coach"
+        ],
+        "summary": "Coach Status",
+        "operationId": "coach_status_coach_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoachStatusResonse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/coach/{game_id}": {
+      "get": {
+        "tags": [
+          "coach"
         ],
         "summary": "Coach Game",
-        "operationId": "coach_game_games__game_id__coach_post",
+        "operationId": "coach_game_coach__game_id__get",
         "parameters": [
           {
             "name": "game_id",
@@ -302,9 +323,13 @@
           "game": {
             "$ref": "#/components/schemas/GameResponse"
           },
-          "recommended_position": {
+          "recommended_x": {
             "type": "integer",
-            "title": "Recommended Position"
+            "title": "Recommended X"
+          },
+          "recommended_y": {
+            "type": "integer",
+            "title": "Recommended Y"
           },
           "message": {
             "type": "string",
@@ -314,7 +339,8 @@
         "type": "object",
         "required": [
           "game",
-          "recommended_position",
+          "recommended_x",
+          "recommended_y",
           "message"
         ],
         "title": "AICoachResponse"
@@ -341,27 +367,13 @@
         "title": "Board",
         "description": "Tic-tac-toe board: 9 cells, each \"\" or \"X\" or \"O\"."
       },
-      "GameResponse": {
+      "CoachStatusResonse": {
         "properties": {
-          "id": {
-            "type": "string",
-            "title": "Id"
+          "available": {
+            "type": "boolean",
+            "title": "Available"
           },
-          "board": {
-            "items": {
-              "type": "string"
-            },
-            "type": "array"
-          },
-          "current_player": {
-            "type": "string",
-            "title": "Current Player"
-          },
-          "status": {
-            "type": "string",
-            "title": "Status"
-          },
-          "winner": {
+          "message": {
             "anyOf": [
               {
                 "type": "string"
@@ -370,7 +382,40 @@
                 "type": "null"
               }
             ],
-            "title": "Winner"
+            "title": "Message"
+          }
+        },
+        "type": "object",
+        "required": [
+          "available"
+        ],
+        "title": "CoachStatusResonse"
+      },
+      "GameResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "title": "Id"
+          },
+          "board": {
+            "items": {},
+            "type": "array"
+          },
+          "current_player": {
+            "$ref": "#/components/schemas/Player"
+          },
+          "status": {
+            "$ref": "#/components/schemas/GameStatus"
+          },
+          "winner": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Player"
+              },
+              {
+                "type": "null"
+              }
+            ]
           },
           "created_at": {
             "anyOf": [
@@ -394,6 +439,14 @@
           "winner"
         ],
         "title": "GameResponse"
+      },
+      "GameStatus": {
+        "type": "string",
+        "enum": [
+          "active",
+          "won",
+          "draw"
+        ]
       },
       "HTTPValidationError": {
         "properties": {
@@ -423,16 +476,15 @@
             "title": "Move Number"
           },
           "player": {
-            "type": "string",
-            "enum": [
-              "X",
-              "O"
-            ],
-            "title": "Player"
+            "$ref": "#/components/schemas/Player"
           },
-          "position": {
+          "x": {
             "type": "integer",
-            "title": "Position"
+            "title": "X"
+          },
+          "y": {
+            "type": "integer",
+            "title": "Y"
           },
           "created_at": {
             "type": "string",
@@ -446,7 +498,8 @@
           "game_id",
           "move_number",
           "player",
-          "position",
+          "x",
+          "y",
           "created_at"
         ],
         "title": "MoveHistoryItem"
@@ -477,29 +530,24 @@
             "title": "Id"
           },
           "board": {
-            "items": {
-              "type": "string"
-            },
+            "items": {},
             "type": "array"
           },
           "current_player": {
-            "type": "string",
-            "title": "Current Player"
+            "$ref": "#/components/schemas/Player"
           },
           "status": {
-            "type": "string",
-            "title": "Status"
+            "$ref": "#/components/schemas/GameStatus"
           },
           "winner": {
             "anyOf": [
               {
-                "type": "string"
+                "$ref": "#/components/schemas/Player"
               },
               {
                 "type": "null"
               }
-            ],
-            "title": "Winner"
+            ]
           },
           "created_at": {
             "anyOf": [
@@ -534,6 +582,13 @@
           "winner"
         ],
         "title": "MoveResponse"
+      },
+      "Player": {
+        "type": "string",
+        "enum": [
+          "X",
+          "O"
+        ]
       },
       "ValidationError": {
         "properties": {

@@ -6,20 +6,18 @@ Notes: Integrates with OpenAI API to recommend the best next move.
        so the SDK validates the response shape instead of manual JSON parsing.
 """
 
-from dataclasses import dataclass
 import dataclasses
-
 import json
+from dataclasses import dataclass
 from typing import Any
 
 from openai import APIError, AsyncOpenAI
 from openai.types.chat import ChatCompletionMessageParam
 from pydantic import BaseModel, Field
 
-from app.models import Board, Game
 from app.environment import Environment
+from app.models import Board, Game
 from app.services.game_service import board_from_json
-
 
 DEFAULT_MODEL = "gpt-4o-mini"
 

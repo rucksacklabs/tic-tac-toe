@@ -11,17 +11,20 @@ import pytest
 from httpx import AsyncClient, ASGITransport
 
 from app.persistence.in_memory_game_repository import InMemoryGameRepository
+from app.persistence.game_repository import GameRepository
 from app.dependency_injection import get_game_repo
 from main import app
+from typing import AsyncGenerator
+from pytest import MonkeyPatch
 
 
 @pytest.fixture
-def repo():
+def repo() -> GameRepository:
     return InMemoryGameRepository()
 
 
 @pytest.fixture
-async def client(repo):
+async def client(repo: GameRepository) -> AsyncGenerator[AsyncClient, None]:
     app.dependency_overrides[get_game_repo] = lambda: repo
     async with AsyncClient(
         transport=ASGITransport(app=app), base_url="http://test"
@@ -30,7 +33,7 @@ async def client(repo):
     app.dependency_overrides.pop(get_game_repo, None)
 
 
-async def test_create_game(client):
+async def test_create_game(client: AsyncClient):
     response = await client.post("/games")
     assert response.status_code == 201
     data = response.json()
@@ -39,7 +42,7 @@ async def test_create_game(client):
     assert data["board"] == ["."] * 9
 
 
-async def test_get_game(client):
+async def test_get_game(client: AsyncClient):
     create_resp = await client.post("/games")
     game_id = create_resp.json()["id"]
     response = await client.get(f"/games/{game_id}")
@@ -47,12 +50,12 @@ async def test_get_game(client):
     assert response.json()["id"] == game_id
 
 
-async def test_get_game_not_found(client):
+async def test_get_game_not_found(client: AsyncClient):
     response = await client.get("/games/nonexistent-id")
     assert response.status_code == 404
 
 
-async def test_list_games_returns_chronological_order(client):
+async def test_list_games_returns_chronological_order(client: AsyncClient):
     await client.post("/games")
     await client.post("/games")
 
@@ -65,7 +68,7 @@ async def test_list_games_returns_chronological_order(client):
     assert created_at_values == sorted(created_at_values)
 
 
-async def test_make_valid_move(client):
+async def test_make_valid_move(client: AsyncClient):
     game_id = (await client.post("/games")).json()["id"]
     response = await client.post(f"/games/{game_id}/moves", json={"x": 0, "y": 0})
     assert response.status_code == 200
@@ -76,7 +79,7 @@ async def test_make_valid_move(client):
     assert data["status"] == "active"
 
 
-async def test_make_move_on_finished_game(client):
+async def test_make_move_on_finished_game(client: AsyncClient):
     # Create and immediately finish a game, then ensure further moves are rejected.
     # Patch random.choice so O never blocks X's main diagonal (0,0)→(1,1)→(2,2).
     game_id = (await client.post("/games")).json()["id"]
@@ -94,20 +97,20 @@ async def test_make_move_on_finished_game(client):
     assert response.status_code == 409
 
 
-async def test_make_move_occupied_cell(client):
+async def test_make_move_occupied_cell(client: AsyncClient):
     game_id = (await client.post("/games")).json()["id"]
     await client.post(f"/games/{game_id}/moves", json={"x": 1, "y": 1})
     response = await client.post(f"/games/{game_id}/moves", json={"x": 1, "y": 1})
     assert response.status_code == 422
 
 
-async def test_make_move_out_of_bounds(client):
+async def test_make_move_out_of_bounds(client: AsyncClient):
     game_id = (await client.post("/games")).json()["id"]
     response = await client.post(f"/games/{game_id}/moves", json={"x": 3, "y": 0})
     assert response.status_code == 422
 
 
-async def test_win_detection(client):
+async def test_win_detection(client: AsyncClient):
     game_id = (await client.post("/games")).json()["id"]
     # TODO: review — patching random.choice to make O deterministic is a smell.
     # Consider exposing a computer_strategy seam on the game service instead,
@@ -127,7 +130,7 @@ async def test_win_detection(client):
     assert "wins" in data["message"]
 
 
-async def test_draw_detection(client):
+async def test_draw_detection(client: AsyncClient):
     game_id = (await client.post("/games")).json()["id"]
     # TODO: review — patching random.choice to make O deterministic is a smell.
     # Consider exposing a computer_strategy seam on the game service instead,
@@ -163,7 +166,7 @@ async def test_draw_detection(client):
     assert last_resp.json()["status"] == "draw"
 
 
-async def test_list_game_moves_returns_chronological_history(client):
+async def test_list_game_moves_returns_chronological_history(client: AsyncClient):
     game_id = (await client.post("/games")).json()["id"]
     move_response = await client.post(f"/games/{game_id}/moves", json={"x": 0, "y": 0})
     assert move_response.status_code == 200
@@ -181,12 +184,12 @@ async def test_list_game_moves_returns_chronological_history(client):
     )  # computer picks a random available cell
 
 
-async def test_list_game_moves_not_found(client):
+async def test_list_game_moves_not_found(client: AsyncClient):
     response = await client.get("/games/nonexistent-id/moves")
     assert response.status_code == 404
 
 
-async def test_delete_game(client):
+async def test_delete_game(client: AsyncClient):
     game_id = (await client.post("/games")).json()["id"]
     response = await client.delete(f"/games/{game_id}")
     assert response.status_code == 204
@@ -195,7 +198,7 @@ async def test_delete_game(client):
 
 
 @pytest.mark.asyncio
-async def test_ai_coach_endpoint_happy_path(client):
+async def test_ai_coach_endpoint_happy_path(client: AsyncClient):
     from unittest.mock import AsyncMock
     from app.dependency_injection import get_ai_coach
 
@@ -220,7 +223,7 @@ async def test_ai_coach_endpoint_happy_path(client):
 
 
 @pytest.mark.asyncio
-async def test_ai_coach_endpoint_game_not_found(client):
+async def test_ai_coach_endpoint_game_not_found(client: AsyncClient):
     from unittest.mock import AsyncMock
     from app.dependency_injection import get_ai_coach
 
@@ -234,7 +237,7 @@ async def test_ai_coach_endpoint_game_not_found(client):
 
 
 @pytest.mark.asyncio
-async def test_coach_status_available(client, monkeypatch):
+async def test_coach_status_available(client: AsyncClient, monkeypatch: MonkeyPatch):
     """Coach status returns available=True when API key is set and coach is ready."""
     from unittest.mock import AsyncMock, patch
     from app.services.ai_coach import AICoach, CoachStatus
@@ -254,7 +257,7 @@ async def test_coach_status_available(client, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_coach_status_unavailable(client, monkeypatch):
+async def test_coach_status_unavailable(client: AsyncClient, monkeypatch: MonkeyPatch):
     """Coach status returns available=False when API key is missing."""
     monkeypatch.setattr("app.environment.Environment.OPENAI_API_KEY_ENV", None)
     response = await client.get("/coach/status")
@@ -265,7 +268,7 @@ async def test_coach_status_unavailable(client, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_ai_coach_endpoint_conflict_on_finished_game(client):
+async def test_ai_coach_endpoint_conflict_on_finished_game(client: AsyncClient):
     from unittest.mock import AsyncMock
     from app.dependency_injection import get_ai_coach
 

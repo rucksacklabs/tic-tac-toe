@@ -41,7 +41,7 @@ def make_parse_response(
 
 
 def test_build_board_context_basic():
-    board = ["X", "O", "", "", "", "", "", "", ""]
+    board: Board = ["X", "O", "", "", "", "", "", "", ""]
     ctx = _build_board_context(board)
     assert ctx["moves_played"] == 2
     assert ctx["available_positions"] == [{"position": i} for i in range(2, 9)]

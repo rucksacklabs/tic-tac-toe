@@ -10,11 +10,11 @@ from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from app.persistence.game_repository import GameRepository
 from app.models import Game, Move
 
 
-class SqlAlchemyGameRepository:
+class SqlAlchemyGameRepository(GameRepository):
     def __init__(self, session: AsyncSession):
         self._session = session
 
@@ -46,6 +46,8 @@ class SqlAlchemyGameRepository:
             await self._session.commit()
 
     async def add_moves(self, game_id: str, moves: list[dict[str, Any]]) -> None:
+        if not await self._session.get(Game, game_id):
+            raise ValueError(f"Game {game_id!r} does not exist")
         for move_data in moves:
             self._session.add(Move(game_id=game_id, **move_data))
         await self._session.commit()

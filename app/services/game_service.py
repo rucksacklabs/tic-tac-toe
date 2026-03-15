@@ -10,7 +10,7 @@ import json
 import random
 from typing import Protocol, cast
 
-from app.models import Board, Cell, Player, GameStatus, MoveTrace
+from app.models import Board, Cell, GameStatus, MoveTrace, Player
 
 
 class GameProtocol(Protocol):
@@ -41,6 +41,9 @@ def new_board() -> Board:
 
 
 def apply_move(*, board: Board, player: Player, position: int) -> Board:
+    """
+    Applies a move to the board and returns a new board with the move applied.
+    """
     if not (0 <= position <= 8):
         raise GameError("Position out of range (must be 0–8)")
     if player not in ("X", "O"):
@@ -79,27 +82,6 @@ def make_new_game() -> dict:
         "status": "active",
         "winner": None,
     }
-
-
-def process_move(game: GameProtocol, player: Player, position: int) -> str | None:
-    board = board_from_json(game.board)
-    board = apply_move(board=board, player=player, position=position)
-
-    winner = check_winner(board)
-    if winner:
-        game.status = "won"
-        game.winner = winner
-        game.board = board_to_json(board)
-        return f"Player {winner} wins!"
-
-    if check_draw(board):
-        game.status = "draw"
-        game.board = board_to_json(board)
-        return "It's a draw!"
-
-    game.current_player = "O" if player == "X" else "X"
-    game.board = board_to_json(board)
-    return None
 
 
 def play_turn_vs_computer_with_trace(

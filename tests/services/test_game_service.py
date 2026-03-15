@@ -5,14 +5,16 @@ Notes: Verifies board manipulation, win/draw detection, and move rules.
 """
 
 import pytest
+from app.models import Board
+
 from app.services.game_service import (
-    new_board,
-    apply_move,
-    check_winner,
-    check_draw,
-    board_to_json,
-    play_turn_vs_computer_with_trace,
     GameError,
+    apply_move,
+    board_to_json,
+    check_draw,
+    check_winner,
+    new_board,
+    play_turn_vs_computer_with_trace,
 )
 
 
@@ -28,7 +30,7 @@ def test_apply_move_places_player():
 
 
 def test_apply_move_raises_on_occupied_cell():
-    board = ["X"] + [""] * 8
+    board: Board = ["X"] + [""] * 8
     with pytest.raises(GameError, match="occupied"):
         apply_move(board=board, player="O", position=0)
 
@@ -95,3 +97,43 @@ def test_computer_picks_random_available_cell():
     assert len(chosen_positions) > 1, (
         "Computer always picked the same position — not random"
     )
+
+
+def test_draw_on_human_final_move_has_no_computer_response():
+    """Computer must not get a move when the human's move fills the board for a draw."""
+
+    # Board: 8 cells filled, position 8 empty — playing it yields no winner → draw
+    # Layout: X O X / X O X / O X _
+    class FakeGame:
+        board = board_to_json(["X", "O", "X", "X", "O", "X", "O", "X", ""])
+        status = "active"
+        winner = None
+        current_player = "O"
+
+    game = FakeGame()
+    message, moves = play_turn_vs_computer_with_trace(game, 8)
+
+    assert message == "It's a draw!"
+    assert game.status == "draw"
+    assert len(moves) == 1, "Computer should not move after human draws the game"
+    assert moves[0] == ("O", 8)
+
+
+def test_computer_is_forced_to_the_only_available_cell():
+    """When only one cell remains after the human move, the computer must pick it."""
+
+    # Board: 7 filled, positions 5 and 8 empty
+    # Human (X) plays 5 → leaves only position 8 for computer (O)
+    # Layout: X O X / X O _ / O X _
+    class FakeGame:
+        board = board_to_json(["X", "O", "X", "X", "O", "", "O", "X", ""])
+        status = "active"
+        winner = None
+        current_player = "X"
+
+    game = FakeGame()
+    _, moves = play_turn_vs_computer_with_trace(game, 5)
+
+    assert len(moves) == 2
+    assert moves[0] == ("X", 5)
+    assert moves[1] == ("O", 8), "Computer must pick the only available cell"

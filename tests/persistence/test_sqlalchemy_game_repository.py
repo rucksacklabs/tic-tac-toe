@@ -122,6 +122,15 @@ async def test_get_moves_returns_ordered_by_move_number(repo):
     assert [m.move_number for m in moves] == [1, 2]
 
 
+async def test_add_moves_raises_on_nonexistent_game_id(repo):
+    """add_moves must raise if the referenced game_id does not exist."""
+    with pytest.raises(Exception):
+        await repo.add_moves(
+            "nonexistent-game-id",
+            [{"player": "X", "move_number": 1, "position": 0}],
+        )
+
+
 async def test_delete_cascades_to_moves(repo):
     game = await repo.create(_new_game_data())
     await repo.add_moves(

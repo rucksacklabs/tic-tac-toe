@@ -1,0 +1,20 @@
+info:
+  name: coach_game
+  type: http
+  seq: 8
+
+http:
+  method: GET
+  url: http://{{host}}/coach/{{game_id}}
+  auth: inherit
+
+runtime:
+  variables:
+    - name: game_id
+      value: 9ee5fc38-b99c-45f9-befd-c4e9884c74b8
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

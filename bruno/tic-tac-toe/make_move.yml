@@ -1,0 +1,27 @@
+info:
+  name: make_move
+  type: http
+  seq: 5
+
+http:
+  method: POST
+  url: http://{{host}}/games/{{game_id}}/moves
+  body:
+    type: json
+    data: |-
+      {
+        "x": "1",
+        "y": "1"
+      }
+  auth: inherit
+
+runtime:
+  variables:
+    - name: game_id
+      value: 9ee5fc38-b99c-45f9-befd-c4e9884c74b8
+
+settings:
+  encodeUrl: true
+  timeout: 0
+  followRedirects: true
+  maxRedirects: 5

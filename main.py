@@ -10,11 +10,11 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 
-from app.persistence.database import init_db
-from app.api.games import router as games_router
 from app.api.ai_coach import router as ai_coach_router
-from app.metrics import MetricsMiddleware
+from app.api.games import router as games_router
 from app.dependency_injection import get_metrics
+from app.metrics import MetricsMiddleware
+from app.persistence.database import init_db
 
 
 @asynccontextmanager

@@ -4,8 +4,12 @@ Architecture: Configuration Layer.
 Notes: Provides a structured way to access configuration values with defaults.
 """
 
+from dotenv import load_dotenv
 import os
 from typing import Any, Type, cast
+
+load_dotenv()  # .env — shared defaults (no secrets)
+load_dotenv(".env.local", override=True)  # .env.local — local overrides (gitignored)
 
 
 class Environment:

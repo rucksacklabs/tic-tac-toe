@@ -608,6 +608,7 @@ dependencies = [
     { name = "fastapi" },
     { name = "openai" },
     { name = "pydantic" },
+    { name = "python-dotenv" },
     { name = "sqlalchemy", extra = ["asyncio"] },
     { name = "uvicorn", extra = ["standard"] },
 ]
@@ -630,6 +631,7 @@ requires-dist = [
     { name = "fastapi", specifier = ">=0.135.1" },
     { name = "openai" },
     { name = "pydantic", specifier = ">=2.12.5" },
+    { name = "python-dotenv", specifier = ">=1.2.2" },
     { name = "sqlalchemy", extras = ["asyncio"], specifier = ">=2.0.48" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.41.0" },
 ]

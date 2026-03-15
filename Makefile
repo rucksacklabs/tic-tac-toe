@@ -65,7 +65,7 @@ clean:
 	rm -rf .pytest_cache .ruff_cache htmlcov .coverage
 
 migrate:  ## Apply all pending migrations
-	uv run alembic upgrade head
+	@set -a && . ./.env.local && set +a && uv run alembic upgrade head
 
 migration:  ## Generate a new migration (usage: make migration MSG="describe change")
 	uv run alembic revision --autogenerate -m "$(MSG)"
